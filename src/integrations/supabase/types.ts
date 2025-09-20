@@ -14,7 +14,123 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      daily_metrics: {
+        Row: {
+          active_listings: number | null
+          appointments_attended: number | null
+          appointments_set: number | null
+          buyers_signed: number | null
+          calls_made: number | null
+          closed_deals: number | null
+          contacts_reached: number | null
+          created_at: string
+          date: string
+          id: string
+          listing_presentations: number | null
+          listings_taken: number | null
+          pending_contracts: number | null
+          updated_at: string
+          user_id: string
+          volume_closed: number | null
+        }
+        Insert: {
+          active_listings?: number | null
+          appointments_attended?: number | null
+          appointments_set?: number | null
+          buyers_signed?: number | null
+          calls_made?: number | null
+          closed_deals?: number | null
+          contacts_reached?: number | null
+          created_at?: string
+          date: string
+          id?: string
+          listing_presentations?: number | null
+          listings_taken?: number | null
+          pending_contracts?: number | null
+          updated_at?: string
+          user_id: string
+          volume_closed?: number | null
+        }
+        Update: {
+          active_listings?: number | null
+          appointments_attended?: number | null
+          appointments_set?: number | null
+          buyers_signed?: number | null
+          calls_made?: number | null
+          closed_deals?: number | null
+          contacts_reached?: number | null
+          created_at?: string
+          date?: string
+          id?: string
+          listing_presentations?: number | null
+          listings_taken?: number | null
+          pending_contracts?: number | null
+          updated_at?: string
+          user_id?: string
+          volume_closed?: number | null
+        }
+        Relationships: []
+      }
+      goals: {
+        Row: {
+          annual_income_goal: number
+          average_commission_per_deal: number
+          created_at: string
+          deals_needed: number | null
+          id: string
+          updated_at: string
+          user_id: string
+          year: number
+        }
+        Insert: {
+          annual_income_goal: number
+          average_commission_per_deal: number
+          created_at?: string
+          deals_needed?: number | null
+          id?: string
+          updated_at?: string
+          user_id: string
+          year: number
+        }
+        Update: {
+          annual_income_goal?: number
+          average_commission_per_deal?: number
+          created_at?: string
+          deals_needed?: number | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+          year?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
