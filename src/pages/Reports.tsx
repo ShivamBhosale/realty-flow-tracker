@@ -4,8 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, TrendingUp, Target, Users } from 'lucide-react';
+import { CalendarDays, TrendingUp, Target, Users, BarChart3, TrendingDown } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays } from 'date-fns';
+import ConversionFunnelChart from '@/components/charts/ConversionFunnelChart';
+import TrendChart from '@/components/charts/TrendChart';
+import GoalProgressChart from '@/components/charts/GoalProgressChart';
 
 interface MetricsSummary {
   calls_made: number;
@@ -25,11 +28,14 @@ const Reports = () => {
   const { user } = useAuth();
   const [timeframe, setTimeframe] = useState<string>('month');
   const [metrics, setMetrics] = useState<MetricsSummary | null>(null);
+  const [dailyData, setDailyData] = useState<any[]>([]);
+  const [goals, setGoals] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
       loadMetrics();
+      loadGoals();
     }
   }, [user, timeframe]);
 
@@ -73,6 +79,9 @@ const Reports = () => {
       .lte('date', end);
 
     if (data && !error) {
+      // Store daily data for trend charts
+      setDailyData(data);
+      
       // Sum up all metrics
       const summary = data.reduce((acc, day) => ({
         calls_made: acc.calls_made + (day.calls_made || 0),
@@ -104,6 +113,22 @@ const Reports = () => {
     }
     
     setIsLoading(false);
+  };
+
+  const loadGoals = async () => {
+    if (!user) return;
+
+    const currentYear = new Date().getFullYear();
+    const { data } = await supabase
+      .from('goals')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('year', currentYear)
+      .single();
+
+    if (data) {
+      setGoals(data);
+    }
   };
 
   const getConversionRate = (numerator: number, denominator: number) => {
@@ -195,11 +220,59 @@ const Reports = () => {
             </Card>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Conversion Funnel</CardTitle>
-                <CardDescription>Track your lead conversion rates</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Conversion Funnel
+                </CardTitle>
+                <CardDescription>Visual breakdown of your sales funnel</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ConversionFunnelChart data={metrics} />
+              </CardContent>
+            </Card>
+
+            {dailyData.length > 1 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Performance Trends
+                  </CardTitle>
+                  <CardDescription>Track your daily activity trends over time</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <TrendChart data={dailyData} />
+                </CardContent>
+              </Card>
+            )}
+
+            {goals && (
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5" />
+                    Goal Progress
+                  </CardTitle>
+                  <CardDescription>Track your progress towards annual goals</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <GoalProgressChart
+                    currentDeals={metrics.closed_deals}
+                    targetDeals={goals.deals_needed || 0}
+                    currentVolume={metrics.volume_closed}
+                    targetVolume={goals.annual_income_goal || 0}
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Conversion Rates</CardTitle>
+                <CardDescription>Detailed conversion metrics</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between">
@@ -232,7 +305,7 @@ const Reports = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Business Pipeline</CardTitle>
-                <CardDescription>Current active business</CardDescription>
+                <CardDescription>Current active business status</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between">
