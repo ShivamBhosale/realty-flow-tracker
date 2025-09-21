@@ -49,7 +49,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, password: string, fullName?: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -59,6 +59,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     });
+
+    // Create profile record if user was created
+    if (data.user && !error) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          user_id: data.user.id,
+          email: email,
+          full_name: fullName || ''
+        });
+      
+      if (profileError) {
+        console.error('Error creating profile:', profileError);
+      }
+    }
+    
     return { error };
   };
 
