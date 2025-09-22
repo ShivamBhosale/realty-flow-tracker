@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { CalendarDays, Phone, Users, Calendar, Home, FileText, HandHeart, Building, Clock, DollarSign } from 'lucide-react';
+import MetricCard from '@/components/dashboard/MetricCard';
+import ConversionInsights from '@/components/dashboard/ConversionInsights';
+import DailyGoalTracker from '@/components/dashboard/DailyGoalTracker';
 
 interface DailyMetrics {
   id?: string;
@@ -134,16 +135,16 @@ const Dashboard = () => {
   };
 
   const metricFields = [
-    { key: 'calls_made', label: 'Calls Made', icon: Phone, color: 'text-blue-600' },
-    { key: 'contacts_reached', label: 'Contacts Reached', icon: Users, color: 'text-green-600' },
-    { key: 'appointments_set', label: 'Appointments Set', icon: Calendar, color: 'text-purple-600' },
-    { key: 'appointments_attended', label: 'Appointments Attended', icon: CalendarDays, color: 'text-orange-600' },
-    { key: 'listing_presentations', label: 'Listing Presentations', icon: FileText, color: 'text-indigo-600' },
-    { key: 'listings_taken', label: 'Listings Taken', icon: Home, color: 'text-emerald-600' },
-    { key: 'buyers_signed', label: 'Buyers Signed', icon: HandHeart, color: 'text-rose-600' },
-    { key: 'active_listings', label: 'Active Listings', icon: Building, color: 'text-yellow-600' },
-    { key: 'pending_contracts', label: 'Pending Contracts', icon: Clock, color: 'text-cyan-600' },
-    { key: 'closed_deals', label: 'Closed Deals', icon: DollarSign, color: 'text-green-700' },
+    { key: 'calls_made', label: 'Calls Made', icon: Phone, color: 'text-chart-1', target: 25 },
+    { key: 'contacts_reached', label: 'Contacts Reached', icon: Users, color: 'text-chart-2', target: 8 },
+    { key: 'appointments_set', label: 'Appointments Set', icon: Calendar, color: 'text-chart-3', target: 4 },
+    { key: 'appointments_attended', label: 'Appointments Attended', icon: CalendarDays, color: 'text-chart-4', target: 3 },
+    { key: 'listing_presentations', label: 'Listing Presentations', icon: FileText, color: 'text-chart-5', target: 2 },
+    { key: 'listings_taken', label: 'Listings Taken', icon: Home, color: 'text-success', target: 1 },
+    { key: 'buyers_signed', label: 'Buyers Signed', icon: HandHeart, color: 'text-accent', target: 1 },
+    { key: 'active_listings', label: 'Active Listings', icon: Building, color: 'text-warning' },
+    { key: 'pending_contracts', label: 'Pending Contracts', icon: Clock, color: 'text-info' },
+    { key: 'closed_deals', label: 'Closed Deals', icon: DollarSign, color: 'text-success' },
   ];
 
   return (
@@ -159,84 +160,32 @@ const Dashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {metricFields.map(({ key, label, icon: Icon, color }) => (
-          <Card key={key}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{label}</CardTitle>
-              <Icon className={`h-4 w-4 ${color}`} />
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="text-2xl font-bold">
-                  {key === 'volume_closed' ? `$${metrics[key].toLocaleString()}` : metrics[key]}
-                </div>
-                <Input
-                  type="number"
-                  min="0"
-                  step={key === 'volume_closed' ? '0.01' : '1'}
-                  value={metrics[key as keyof DailyMetrics]}
-                  onChange={(e) => updateMetric(key as keyof DailyMetrics, parseFloat(e.target.value) || 0)}
-                  className="text-sm"
-                />
-              </div>
-            </CardContent>
-          </Card>
+        {metricFields.map(({ key, label, icon, color, target }) => (
+          <MetricCard
+            key={key}
+            label={label}
+            value={metrics[key as keyof DailyMetrics] as number}
+            icon={icon}
+            color={color}
+            onChange={(value) => updateMetric(key as keyof DailyMetrics, value)}
+            target={target}
+          />
         ))}
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Volume Closed</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-700" />
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="text-2xl font-bold">
-                ${metrics.volume_closed.toLocaleString()}
-              </div>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={metrics.volume_closed}
-                onChange={(e) => updateMetric('volume_closed', parseFloat(e.target.value) || 0)}
-                className="text-sm"
-                placeholder="0.00"
-              />
-            </div>
-          </CardContent>
-        </Card>
+        <MetricCard
+          label="Volume Closed"
+          value={metrics.volume_closed}
+          icon={DollarSign}
+          color="text-success"
+          onChange={(value) => updateMetric('volume_closed', value)}
+          isVolume={true}
+        />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Conversion Insights</CardTitle>
-          <CardDescription>
-            Real-time conversion ratios based on today's numbers
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-muted rounded-lg">
-              <div className="text-2xl font-bold text-primary">
-                {metrics.calls_made > 0 ? ((metrics.contacts_reached / metrics.calls_made) * 100).toFixed(1) : 0}%
-              </div>
-              <p className="text-sm text-muted-foreground">Calls to Contacts</p>
-            </div>
-            <div className="text-center p-4 bg-muted rounded-lg">
-              <div className="text-2xl font-bold text-primary">
-                {metrics.contacts_reached > 0 ? ((metrics.appointments_set / metrics.contacts_reached) * 100).toFixed(1) : 0}%
-              </div>
-              <p className="text-sm text-muted-foreground">Contacts to Appointments</p>
-            </div>
-            <div className="text-center p-4 bg-muted rounded-lg">
-              <div className="text-2xl font-bold text-primary">
-                {metrics.listing_presentations > 0 ? ((metrics.listings_taken / metrics.listing_presentations) * 100).toFixed(1) : 0}%
-              </div>
-              <p className="text-sm text-muted-foreground">Presentations to Listings</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <DailyGoalTracker todaysMetrics={metrics} />
+        <ConversionInsights metrics={metrics} />
+      </div>
     </div>
   );
 };
