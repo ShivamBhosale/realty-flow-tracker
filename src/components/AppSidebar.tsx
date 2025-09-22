@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, BarChart3, Target, Settings, LogOut } from 'lucide-react';
+import { Home, BarChart3, Target, Settings, LogOut, Users } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -16,6 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const navigationItems = [
   { title: 'Dashboard', url: '/', icon: Home },
+  { title: 'Contacts', url: '/contacts', icon: Users },
   { title: 'Reports', url: '/reports', icon: BarChart3 },
   { title: 'Goals', url: '/goals', icon: Target },
   { title: 'Settings', url: '/settings', icon: Settings },

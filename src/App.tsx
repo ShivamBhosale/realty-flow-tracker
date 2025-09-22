@@ -8,6 +8,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Reports from "./pages/Reports";
 import Goals from "./pages/Goals";
+import Contacts from "./pages/Contacts";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -31,6 +32,7 @@ const App = () => (
                   <main className="flex-1 p-6">
                     <Routes>
                       <Route path="/" element={<Dashboard />} />
+                      <Route path="/contacts" element={<Contacts />} />
                       <Route path="/reports" element={<Reports />} />
                       <Route path="/goals" element={<Goals />} />
                       <Route path="/settings" element={<div>Settings - Coming Soon</div>} />

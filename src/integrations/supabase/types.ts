@@ -14,6 +14,122 @@ export type Database = {
   }
   public: {
     Tables: {
+      contact_interactions: {
+        Row: {
+          completed_at: string | null
+          contact_id: string
+          created_at: string
+          follow_up_date: string | null
+          id: string
+          interaction_type: string
+          notes: string | null
+          scheduled_at: string | null
+          subject: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          contact_id: string
+          created_at?: string
+          follow_up_date?: string | null
+          id?: string
+          interaction_type: string
+          notes?: string | null
+          scheduled_at?: string | null
+          subject?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          contact_id?: string
+          created_at?: string
+          follow_up_date?: string | null
+          id?: string
+          interaction_type?: string
+          notes?: string | null
+          scheduled_at?: string | null
+          subject?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_interactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contacts: {
+        Row: {
+          address: string | null
+          budget_max: number | null
+          budget_min: number | null
+          city: string | null
+          contact_type: Database["public"]["Enums"]["contact_type"]
+          created_at: string
+          email: string | null
+          first_name: string
+          id: string
+          last_name: string
+          lead_source: Database["public"]["Enums"]["lead_source"] | null
+          notes: string | null
+          phone: string | null
+          preferred_areas: string[] | null
+          state: string | null
+          status: Database["public"]["Enums"]["contact_status"]
+          updated_at: string
+          user_id: string
+          zip_code: string | null
+        }
+        Insert: {
+          address?: string | null
+          budget_max?: number | null
+          budget_min?: number | null
+          city?: string | null
+          contact_type?: Database["public"]["Enums"]["contact_type"]
+          created_at?: string
+          email?: string | null
+          first_name: string
+          id?: string
+          last_name: string
+          lead_source?: Database["public"]["Enums"]["lead_source"] | null
+          notes?: string | null
+          phone?: string | null
+          preferred_areas?: string[] | null
+          state?: string | null
+          status?: Database["public"]["Enums"]["contact_status"]
+          updated_at?: string
+          user_id: string
+          zip_code?: string | null
+        }
+        Update: {
+          address?: string | null
+          budget_max?: number | null
+          budget_min?: number | null
+          city?: string | null
+          contact_type?: Database["public"]["Enums"]["contact_type"]
+          created_at?: string
+          email?: string | null
+          first_name?: string
+          id?: string
+          last_name?: string
+          lead_source?: Database["public"]["Enums"]["lead_source"] | null
+          notes?: string | null
+          phone?: string | null
+          preferred_areas?: string[] | null
+          state?: string | null
+          status?: Database["public"]["Enums"]["contact_status"]
+          updated_at?: string
+          user_id?: string
+          zip_code?: string | null
+        }
+        Relationships: []
+      }
       daily_metrics: {
         Row: {
           active_listings: number | null
@@ -139,7 +255,22 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      contact_status:
+        | "new"
+        | "contacted"
+        | "qualified"
+        | "interested"
+        | "not_interested"
+        | "do_not_call"
+      contact_type: "buyer" | "seller" | "investor" | "referral_partner"
+      lead_source:
+        | "referral"
+        | "website"
+        | "social_media"
+        | "cold_call"
+        | "open_house"
+        | "advertisement"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -266,6 +397,25 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      contact_status: [
+        "new",
+        "contacted",
+        "qualified",
+        "interested",
+        "not_interested",
+        "do_not_call",
+      ],
+      contact_type: ["buyer", "seller", "investor", "referral_partner"],
+      lead_source: [
+        "referral",
+        "website",
+        "social_media",
+        "cold_call",
+        "open_house",
+        "advertisement",
+        "other",
+      ],
+    },
   },
 } as const
