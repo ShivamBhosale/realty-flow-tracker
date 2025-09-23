@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import ContactCard from '@/components/contacts/ContactCard';
+import ContactInteractionDialog from '@/components/contacts/ContactInteractionDialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,27 +14,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Phone, Mail, MapPin, Calendar, MessageSquare, Search, Filter } from 'lucide-react';
+import { Tables } from '@/integrations/supabase/types';
 
-interface Contact {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  zip_code?: string;
-  contact_type: 'buyer' | 'seller' | 'investor' | 'referral_partner';
-  status: 'new' | 'contacted' | 'qualified' | 'interested' | 'not_interested' | 'do_not_call';
-  lead_source?: 'referral' | 'website' | 'social_media' | 'cold_call' | 'open_house' | 'advertisement' | 'other';
-  notes?: string;
-  budget_min?: number;
-  budget_max?: number;
-  preferred_areas?: string[];
-  created_at: string;
-  updated_at: string;
-}
+type Contact = Tables<'contacts'>;
 
 interface NewContact {
   first_name: string;
@@ -61,6 +45,15 @@ const Contacts = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [interactionDialog, setInteractionDialog] = useState<{
+    open: boolean;
+    contactId: string;
+    contactName: string;
+  }>({
+    open: false,
+    contactId: '',
+    contactName: ''
+  });
   
   const [newContact, setNewContact] = useState<NewContact>({
     first_name: '',
@@ -211,6 +204,45 @@ const Contacts = () => {
     
     return matchesSearch && matchesStatus && matchesType;
   });
+
+  const handleAddInteraction = (contactId: string, contactName: string) => {
+    setInteractionDialog({
+      open: true,
+      contactId,
+      contactName
+    });
+  };
+
+  const handleDeleteContact = async (contactId: string) => {
+    if (!window.confirm('Are you sure you want to delete this contact?')) return;
+
+    const { error } = await supabase
+      .from('contacts')
+      .delete()
+      .eq('id', contactId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete contact. Please try again.",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Contact deleted successfully!",
+      });
+      loadContacts();
+    }
+  };
+
+  const handleEditContact = (contact: Contact) => {
+    // For now, just show a toast - you can implement edit functionality later
+    toast({
+      title: "Edit Contact",
+      description: "Edit functionality coming soon!",
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -517,7 +549,7 @@ const Contacts = () => {
         </CardContent>
       </Card>
 
-      {/* Contacts Table */}
+      {/* Contacts Grid */}
       <Card>
         <CardHeader>
           <CardTitle>Contact List ({filteredContacts.length})</CardTitle>
@@ -541,103 +573,33 @@ const Contacts = () => {
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Contact Info</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Lead Source</TableHead>
-                    <TableHead>Budget</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredContacts.map((contact) => (
-                    <TableRow key={contact.id}>
-                      <TableCell>
-                        <div className="font-medium">
-                          {contact.first_name} {contact.last_name}
-                        </div>
-                        {contact.preferred_areas && contact.preferred_areas.length > 0 && (
-                          <div className="text-xs text-muted-foreground">
-                            <MapPin className="h-3 w-3 inline mr-1" />
-                            {contact.preferred_areas.join(', ')}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          {contact.email && (
-                            <div className="flex items-center text-xs">
-                              <Mail className="h-3 w-3 mr-1" />
-                              {contact.email}
-                            </div>
-                          )}
-                          {contact.phone && (
-                            <div className="flex items-center text-xs">
-                              <Phone className="h-3 w-3 mr-1" />
-                              {contact.phone}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getTypeColor(contact.contact_type)}>
-                          {contact.contact_type.replace('_', ' ')}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(contact.status)}>
-                          {contact.status.replace('_', ' ')}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {contact.lead_source ? (
-                          <span className="text-sm capitalize">
-                            {contact.lead_source.replace('_', ' ')}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {contact.budget_min || contact.budget_max ? (
-                          <div className="text-sm">
-                            {contact.budget_min && `$${contact.budget_min.toLocaleString()}`}
-                            {contact.budget_min && contact.budget_max && ' - '}
-                            {contact.budget_max && `$${contact.budget_max.toLocaleString()}`}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          {new Date(contact.created_at).toLocaleDateString()}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="ghost" size="sm">
-                            <MessageSquare className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm">
-                            <Calendar className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredContacts.map((contact) => (
+                <ContactCard
+                  key={contact.id}
+                  contact={contact}
+                  onEdit={handleEditContact}
+                  onDelete={handleDeleteContact}
+                  onAddInteraction={handleAddInteraction}
+                />
+              ))}
             </div>
           )}
         </CardContent>
       </Card>
+
+      <ContactInteractionDialog
+        contactId={interactionDialog.contactId}
+        contactName={interactionDialog.contactName}
+        open={interactionDialog.open}
+        onOpenChange={(open) => setInteractionDialog(prev => ({ ...prev, open }))}
+        onSuccess={() => {
+          toast({
+            title: "Success",
+            description: "Interaction added successfully!",
+          });
+        }}
+      />
     </div>
   );
 };

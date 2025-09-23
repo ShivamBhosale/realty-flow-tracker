@@ -8,6 +8,7 @@ import { CalendarDays, Phone, Users, Calendar, Home, FileText, HandHeart, Buildi
 import MetricCard from '@/components/dashboard/MetricCard';
 import ConversionInsights from '@/components/dashboard/ConversionInsights';
 import DailyGoalTracker from '@/components/dashboard/DailyGoalTracker';
+import WelcomeBanner from '@/components/dashboard/WelcomeBanner';
 
 interface DailyMetrics {
   id?: string;
@@ -149,6 +150,8 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
+      <WelcomeBanner />
+      
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Daily Metrics</h1>
