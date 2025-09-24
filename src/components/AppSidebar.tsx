@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, BarChart3, Target, Settings, LogOut, Users } from 'lucide-react';
+import { Home, BarChart3, Target, Settings, LogOut, Users, User } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -19,6 +19,7 @@ const navigationItems = [
   { title: 'Contacts', url: '/contacts', icon: Users },
   { title: 'Reports', url: '/reports', icon: BarChart3 },
   { title: 'Goals', url: '/goals', icon: Target },
+  { title: 'Profile', url: '/profile', icon: User },
   { title: 'Settings', url: '/settings', icon: Settings },
 ];
 

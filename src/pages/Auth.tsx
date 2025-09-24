@@ -9,12 +9,15 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [resetEmail, setResetEmail] = useState('');
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   const {
     signIn,
     signUp,
@@ -73,6 +76,33 @@ const Auth = () => {
     }
     setIsLoading(false);
   };
+
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsResettingPassword(true);
+    setError('');
+
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: `${window.location.origin}/auth`
+    });
+
+    if (error) {
+      setError(error.message);
+      toast({
+        title: "Password reset failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Password reset email sent!",
+        description: "Please check your email for the reset link."
+      });
+      setResetEmail('');
+    }
+    setIsResettingPassword(false);
+  };
+
   return <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
@@ -83,9 +113,10 @@ const Auth = () => {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              <TabsTrigger value="reset">Reset</TabsTrigger>
             </TabsList>
 
             <TabsContent value="signin">
@@ -128,6 +159,29 @@ const Auth = () => {
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Sign Up
+                </Button>
+              </form>
+            </TabsContent>
+
+            <TabsContent value="reset">
+              <form onSubmit={handlePasswordReset} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="resetEmail">Email</Label>
+                  <Input 
+                    id="resetEmail" 
+                    type="email" 
+                    placeholder="Enter your email" 
+                    value={resetEmail} 
+                    onChange={e => setResetEmail(e.target.value)} 
+                    required 
+                  />
+                </div>
+                {error && <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>}
+                <Button type="submit" className="w-full" disabled={isResettingPassword}>
+                  {isResettingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Send Reset Email
                 </Button>
               </form>
             </TabsContent>

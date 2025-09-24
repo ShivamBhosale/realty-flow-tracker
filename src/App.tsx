@@ -10,6 +10,7 @@ import Reports from "./pages/Reports";
 import Goals from "./pages/Goals";
 import Contacts from "./pages/Contacts";
 import Auth from "./pages/Auth";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const App = () => (
@@ -32,9 +33,10 @@ const App = () => (
                   <main className="flex-1 p-6">
                     <Routes>
                       <Route path="/" element={<Dashboard />} />
-                      <Route path="/contacts" element={<Contacts />} />
-                      <Route path="/reports" element={<Reports />} />
-                      <Route path="/goals" element={<Goals />} />
+                  <Route path="/contacts" element={<Contacts />} />
+                  <Route path="/reports" element={<Reports />} />
+                  <Route path="/goals" element={<Goals />} />
+                  <Route path="/profile" element={<Profile />} />
                       <Route path="/settings" element={<div>Settings - Coming Soon</div>} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
