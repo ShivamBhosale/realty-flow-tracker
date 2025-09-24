@@ -16,29 +16,27 @@ interface DailyGoalTrackerProps {
 
 const DailyGoalTracker: React.FC<DailyGoalTrackerProps> = ({ todaysMetrics }) => {
   const { user } = useAuth();
-  const [goals, setGoals] = useState<any>(null);
+  const [targets, setTargets] = useState<any>(null);
 
   useEffect(() => {
-    loadGoals();
+    loadTargets();
   }, [user]);
 
-  const loadGoals = async () => {
+  const loadTargets = async () => {
     if (!user) return;
 
-    const currentYear = new Date().getFullYear();
     const { data } = await supabase
-      .from('goals')
+      .from('daily_targets')
       .select('*')
       .eq('user_id', user.id)
-      .eq('year', currentYear)
-      .single();
+      .maybeSingle();
 
     if (data) {
-      setGoals(data);
+      setTargets(data);
     }
   };
 
-  if (!goals) {
+  if (!targets) {
     return (
       <Card>
         <CardHeader>
@@ -47,46 +45,35 @@ const DailyGoalTracker: React.FC<DailyGoalTrackerProps> = ({ todaysMetrics }) =>
             Daily Goal Progress
           </CardTitle>
           <CardDescription>
-            Set your annual goals to track daily progress
+            Set your daily targets in Goals to track progress
           </CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground text-center py-4">
-            No goals set for this year. Visit the Goals page to set your targets.
+            No daily targets set. Visit the Goals page to set your daily activity targets.
           </p>
         </CardContent>
       </Card>
     );
   }
 
-  // Calculate daily targets based on annual goals
-  const daysInYear = 365;
-  const workingDaysInYear = 250; // Assuming 5 days/week, 50 weeks/year
-
-  const dailyTargets = {
-    calls: Math.ceil((goals.calls_needed || 0) / workingDaysInYear),
-    contacts: Math.ceil((goals.contacts_needed || 0) / workingDaysInYear),
-    appointments: Math.ceil((goals.appointments_needed || 0) / workingDaysInYear),
-    deals: Math.ceil((goals.deals_needed || 0) / workingDaysInYear),
-  };
-
   const dailyGoals = [
     {
       label: 'Daily Calls',
       current: todaysMetrics.calls_made,
-      target: dailyTargets.calls,
+      target: targets.calls_made_target || 0,
       color: 'hsl(var(--chart-1))'
     },
     {
       label: 'Daily Contacts',
       current: todaysMetrics.contacts_reached,
-      target: dailyTargets.contacts,
+      target: targets.contacts_reached_target || 0,
       color: 'hsl(var(--chart-2))'
     },
     {
       label: 'Daily Appointments',
       current: todaysMetrics.appointments_set,
-      target: dailyTargets.appointments,
+      target: targets.appointments_set_target || 0,
       color: 'hsl(var(--chart-3))'
     }
   ];
@@ -99,7 +86,7 @@ const DailyGoalTracker: React.FC<DailyGoalTrackerProps> = ({ todaysMetrics }) =>
           Daily Goal Progress
         </CardTitle>
         <CardDescription>
-          Track your daily activity against annual goal targets
+          Track your daily activity against your set targets
         </CardDescription>
       </CardHeader>
       <CardContent>

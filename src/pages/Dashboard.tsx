@@ -135,14 +135,32 @@ const Dashboard = () => {
     }));
   };
 
+  const [dailyTargets, setDailyTargets] = useState<any>(null);
+
+  useEffect(() => {
+    loadDailyTargets();
+  }, [user]);
+
+  const loadDailyTargets = async () => {
+    if (!user) return;
+
+    const { data } = await supabase
+      .from('daily_targets')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    setDailyTargets(data);
+  };
+
   const metricFields = [
-    { key: 'calls_made', label: 'Calls Made', icon: Phone, color: 'text-chart-1', target: 25 },
-    { key: 'contacts_reached', label: 'Contacts Reached', icon: Users, color: 'text-chart-2', target: 8 },
-    { key: 'appointments_set', label: 'Appointments Set', icon: Calendar, color: 'text-chart-3', target: 4 },
-    { key: 'appointments_attended', label: 'Appointments Attended', icon: CalendarDays, color: 'text-chart-4', target: 3 },
-    { key: 'listing_presentations', label: 'Listing Presentations', icon: FileText, color: 'text-chart-5', target: 2 },
-    { key: 'listings_taken', label: 'Listings Taken', icon: Home, color: 'text-success', target: 1 },
-    { key: 'buyers_signed', label: 'Buyers Signed', icon: HandHeart, color: 'text-accent', target: 1 },
+    { key: 'calls_made', label: 'Calls Made', icon: Phone, color: 'text-chart-1', targetKey: 'calls_made_target' },
+    { key: 'contacts_reached', label: 'Contacts Reached', icon: Users, color: 'text-chart-2', targetKey: 'contacts_reached_target' },
+    { key: 'appointments_set', label: 'Appointments Set', icon: Calendar, color: 'text-chart-3', targetKey: 'appointments_set_target' },
+    { key: 'appointments_attended', label: 'Appointments Attended', icon: CalendarDays, color: 'text-chart-4', targetKey: 'appointments_attended_target' },
+    { key: 'listing_presentations', label: 'Listing Presentations', icon: FileText, color: 'text-chart-5', targetKey: 'listing_presentations_target' },
+    { key: 'listings_taken', label: 'Listings Taken', icon: Home, color: 'text-success', targetKey: 'listings_taken_target' },
+    { key: 'buyers_signed', label: 'Buyers Signed', icon: HandHeart, color: 'text-accent', targetKey: 'buyers_signed_target' },
     { key: 'active_listings', label: 'Active Listings', icon: Building, color: 'text-warning' },
     { key: 'pending_contracts', label: 'Pending Contracts', icon: Clock, color: 'text-info' },
     { key: 'closed_deals', label: 'Closed Deals', icon: DollarSign, color: 'text-success' },
@@ -163,17 +181,21 @@ const Dashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {metricFields.map(({ key, label, icon, color, target }) => (
-          <MetricCard
-            key={key}
-            label={label}
-            value={metrics[key as keyof DailyMetrics] as number}
-            icon={icon}
-            color={color}
-            onChange={(value) => updateMetric(key as keyof DailyMetrics, value)}
-            target={target}
-          />
-        ))}
+        {metricFields.map(({ key, label, icon, color, targetKey }) => {
+          const target = targetKey && dailyTargets ? dailyTargets[targetKey] : undefined;
+          
+          return (
+            <MetricCard
+              key={key}
+              label={label}
+              value={metrics[key as keyof DailyMetrics] as number}
+              icon={icon}
+              color={color}
+              onChange={(value) => updateMetric(key as keyof DailyMetrics, value)}
+              target={target}
+            />
+          );
+        })}
 
         <MetricCard
           label="Volume Closed"

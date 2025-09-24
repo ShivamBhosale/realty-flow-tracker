@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Target, DollarSign, TrendingUp } from 'lucide-react';
+import DailyTargetsManager from '@/components/goals/DailyTargetsManager';
 
 interface Goals {
   id?: string;
@@ -98,11 +99,18 @@ const Goals = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Goals</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Goals & Targets</h1>
         <p className="text-muted-foreground">
-          Set your annual goals and track your progress
+          Set your annual goals and daily activity targets
         </p>
       </div>
+
+      {/* Daily Targets Section */}
+      <DailyTargetsManager />
+
+      {/* Annual Goals Section */}
+      <div>
+        <h2 className="text-2xl font-semibold mb-4">Annual Goals</h2>
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
@@ -176,13 +184,14 @@ const Goals = () => {
         </Card>
       </div>
 
-      <Button 
-        onClick={handleSave} 
-        disabled={isLoading}
-        className="w-full md:w-auto"
-      >
-        {isLoading ? 'Saving...' : 'Save Goals'}
-      </Button>
+        <Button 
+          onClick={handleSave} 
+          disabled={isLoading}
+          className="w-full md:w-auto"
+        >
+          {isLoading ? 'Saving...' : 'Save Annual Goals'}
+        </Button>
+      </div>
     </div>
   );
 };

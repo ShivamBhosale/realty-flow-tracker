@@ -187,6 +187,48 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_targets: {
+        Row: {
+          appointments_attended_target: number | null
+          appointments_set_target: number | null
+          buyers_signed_target: number | null
+          calls_made_target: number | null
+          contacts_reached_target: number | null
+          created_at: string
+          id: string
+          listing_presentations_target: number | null
+          listings_taken_target: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          appointments_attended_target?: number | null
+          appointments_set_target?: number | null
+          buyers_signed_target?: number | null
+          calls_made_target?: number | null
+          contacts_reached_target?: number | null
+          created_at?: string
+          id?: string
+          listing_presentations_target?: number | null
+          listings_taken_target?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          appointments_attended_target?: number | null
+          appointments_set_target?: number | null
+          buyers_signed_target?: number | null
+          calls_made_target?: number | null
+          contacts_reached_target?: number | null
+          created_at?: string
+          id?: string
+          listing_presentations_target?: number | null
+          listings_taken_target?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       goals: {
         Row: {
           annual_income_goal: number
