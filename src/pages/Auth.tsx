@@ -82,25 +82,38 @@ const Auth = () => {
     setIsResettingPassword(true);
     setError('');
 
-    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-      redirectTo: `${window.location.origin}/auth`
-    });
+    if (!resetEmail) {
+      setError('Please enter your email address');
+      setIsResettingPassword(false);
+      return;
+    }
 
-    if (error) {
-      setError(error.message);
-      toast({
-        title: "Password reset failed",
-        description: error.message,
-        variant: "destructive"
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/auth?type=recovery`
       });
-    } else {
+
+      if (error) {
+        throw error;
+      }
+
       toast({
         title: "Password reset email sent!",
-        description: "Please check your email for the reset link."
+        description: "Please check your email for the reset link.",
       });
       setResetEmail('');
+      setError('');
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Failed to send reset email';
+      setError(errorMessage);
+      toast({
+        title: "Password reset failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setIsResettingPassword(false);
     }
-    setIsResettingPassword(false);
   };
 
   return <div className="min-h-screen flex items-center justify-center bg-background px-4">

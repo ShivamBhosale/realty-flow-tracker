@@ -236,12 +236,53 @@ const Contacts = () => {
     }
   };
 
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
   const handleEditContact = (contact: Contact) => {
-    // For now, just show a toast - you can implement edit functionality later
-    toast({
-      title: "Edit Contact",
-      description: "Edit functionality coming soon!",
-    });
+    setEditingContact(contact);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateContact = async () => {
+    if (!editingContact || !user) return;
+
+    const { error } = await supabase
+      .from('contacts')
+      .update({
+        first_name: editingContact.first_name,
+        last_name: editingContact.last_name,
+        email: editingContact.email,
+        phone: editingContact.phone,
+        address: editingContact.address,
+        city: editingContact.city,
+        state: editingContact.state,
+        zip_code: editingContact.zip_code,
+        contact_type: editingContact.contact_type,
+        status: editingContact.status,
+        lead_source: editingContact.lead_source,
+        notes: editingContact.notes,
+        budget_min: editingContact.budget_min,
+        budget_max: editingContact.budget_max,
+        preferred_areas: editingContact.preferred_areas,
+      })
+      .eq('id', editingContact.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update contact. Please try again.",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Contact updated successfully!",
+      });
+      setIsEditDialogOpen(false);
+      setEditingContact(null);
+      loadContacts();
+    }
   };
 
   return (
@@ -600,6 +641,124 @@ const Contacts = () => {
           });
         }}
       />
+
+      {/* Edit Contact Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Contact</DialogTitle>
+            <DialogDescription>
+              Update contact information.
+            </DialogDescription>
+          </DialogHeader>
+          {editingContact && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit_first_name">First Name *</Label>
+                  <Input
+                    id="edit_first_name"
+                    value={editingContact.first_name}
+                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, first_name: e.target.value } : null)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_last_name">Last Name *</Label>
+                  <Input
+                    id="edit_last_name"
+                    value={editingContact.last_name}
+                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, last_name: e.target.value } : null)}
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit_email">Email</Label>
+                  <Input
+                    id="edit_email"
+                    type="email"
+                    value={editingContact.email || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, email: e.target.value } : null)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_phone">Phone</Label>
+                  <Input
+                    id="edit_phone"
+                    value={editingContact.phone || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, phone: e.target.value } : null)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit_contact_type">Contact Type</Label>
+                  <Select 
+                    value={editingContact.contact_type} 
+                    onValueChange={(value: Contact['contact_type']) => 
+                      setEditingContact(prev => prev ? { ...prev, contact_type: value } : null)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="buyer">Buyer</SelectItem>
+                      <SelectItem value="seller">Seller</SelectItem>
+                      <SelectItem value="investor">Investor</SelectItem>
+                      <SelectItem value="referral_partner">Referral Partner</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_status">Status</Label>
+                  <Select 
+                    value={editingContact.status} 
+                    onValueChange={(value: Contact['status']) => 
+                      setEditingContact(prev => prev ? { ...prev, status: value } : null)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="new">New</SelectItem>
+                      <SelectItem value="contacted">Contacted</SelectItem>
+                      <SelectItem value="qualified">Qualified</SelectItem>
+                      <SelectItem value="interested">Interested</SelectItem>
+                      <SelectItem value="not_interested">Not Interested</SelectItem>
+                      <SelectItem value="do_not_call">Do Not Call</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit_notes">Notes</Label>
+                <Textarea
+                  id="edit_notes"
+                  value={editingContact.notes || ''}
+                  onChange={(e) => setEditingContact(prev => prev ? { ...prev, notes: e.target.value } : null)}
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsEditDialogOpen(false);
+              setEditingContact(null);
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateContact}>
+              Update Contact
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
