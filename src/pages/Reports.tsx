@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { CalendarDays, TrendingUp, Target, Users, BarChart3, TrendingDown } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import ConversionFunnelChart from '@/components/charts/ConversionFunnelChart';
 import TrendChart from '@/components/charts/TrendChart';
 import GoalProgressChart from '@/components/charts/GoalProgressChart';
@@ -40,27 +41,28 @@ const Reports = () => {
   }, [user, timeframe]);
 
   const getDateRange = () => {
+    const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const now = new Date();
     switch (timeframe) {
       case 'week':
         return {
-          start: format(subDays(now, 7), 'yyyy-MM-dd'),
-          end: format(now, 'yyyy-MM-dd')
+          start: formatInTimeZone(subDays(now, 7), userTimeZone, 'yyyy-MM-dd'),
+          end: formatInTimeZone(now, userTimeZone, 'yyyy-MM-dd')
         };
       case 'month':
         return {
-          start: format(startOfMonth(now), 'yyyy-MM-dd'),
-          end: format(endOfMonth(now), 'yyyy-MM-dd')
+          start: formatInTimeZone(startOfMonth(now), userTimeZone, 'yyyy-MM-dd'),
+          end: formatInTimeZone(endOfMonth(now), userTimeZone, 'yyyy-MM-dd')
         };
       case 'year':
         return {
-          start: format(startOfYear(now), 'yyyy-MM-dd'),
-          end: format(endOfYear(now), 'yyyy-MM-dd')
+          start: formatInTimeZone(startOfYear(now), userTimeZone, 'yyyy-MM-dd'),
+          end: formatInTimeZone(endOfYear(now), userTimeZone, 'yyyy-MM-dd')
         };
       default:
         return {
-          start: format(startOfMonth(now), 'yyyy-MM-dd'),
-          end: format(endOfMonth(now), 'yyyy-MM-dd')
+          start: formatInTimeZone(startOfMonth(now), userTimeZone, 'yyyy-MM-dd'),
+          end: formatInTimeZone(endOfMonth(now), userTimeZone, 'yyyy-MM-dd')
         };
     }
   };

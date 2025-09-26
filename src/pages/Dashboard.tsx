@@ -4,7 +4,11 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { CalendarDays, Phone, Users, Calendar, Home, FileText, HandHeart, Building, Clock, DollarSign } from 'lucide-react';
+import { CalendarDays, Phone, Users, Calendar, Home, FileText, HandHeart, Building, Clock, DollarSign, CalendarIcon } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { format, formatInTimeZone, toZonedTime } from 'date-fns-tz';
+import { cn } from '@/lib/utils';
 import MetricCard from '@/components/dashboard/MetricCard';
 import ConversionInsights from '@/components/dashboard/ConversionInsights';
 import DailyGoalTracker from '@/components/dashboard/DailyGoalTracker';
@@ -29,8 +33,9 @@ interface DailyMetrics {
 const Dashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [metrics, setMetrics] = useState<DailyMetrics>({
-    date: new Date().toISOString().split('T')[0],
+    date: formatInTimeZone(new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone, 'yyyy-MM-dd'),
     calls_made: 0,
     contacts_reached: 0,
     appointments_set: 0,
@@ -46,18 +51,22 @@ const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    loadTodaysMetrics();
+    loadMetricsForDate();
+  }, [selectedDate]);
+
+  useEffect(() => {
+    loadMetricsForDate();
   }, []);
 
-  const loadTodaysMetrics = async () => {
+  const loadMetricsForDate = async () => {
     if (!user) return;
 
-    const today = new Date().toISOString().split('T')[0];
+    const localDate = formatInTimeZone(selectedDate, Intl.DateTimeFormat().resolvedOptions().timeZone, 'yyyy-MM-dd');
     const { data, error } = await supabase
       .from('daily_metrics')
       .select('*')
       .eq('user_id', user.id)
-      .eq('date', today)
+      .eq('date', localDate)
       .maybeSingle();
 
     if (error) {
@@ -80,6 +89,23 @@ const Dashboard = () => {
         pending_contracts: data.pending_contracts || 0,
         closed_deals: data.closed_deals || 0,
         volume_closed: data.volume_closed || 0,
+      });
+    } else {
+      // Reset metrics for new date
+      const localDate = formatInTimeZone(selectedDate, Intl.DateTimeFormat().resolvedOptions().timeZone, 'yyyy-MM-dd');
+      setMetrics({
+        date: localDate,
+        calls_made: 0,
+        contacts_reached: 0,
+        appointments_set: 0,
+        appointments_attended: 0,
+        listing_presentations: 0,
+        listings_taken: 0,
+        buyers_signed: 0,
+        active_listings: 0,
+        pending_contracts: 0,
+        closed_deals: 0,
+        volume_closed: 0,
       });
     }
   };
@@ -122,7 +148,7 @@ const Dashboard = () => {
         title: "Success",
         description: "Daily metrics saved successfully!",
       });
-      loadTodaysMetrics();
+      loadMetricsForDate();
     }
 
     setIsLoading(false);
@@ -175,9 +201,34 @@ const Dashboard = () => {
           <h1 className="text-3xl font-bold">Daily Metrics</h1>
           <p className="text-muted-foreground">Track your daily real estate activities</p>
         </div>
-        <Button onClick={handleSave} disabled={isLoading}>
-          {isLoading ? 'Saving...' : 'Save Metrics'}
-        </Button>
+        <div className="flex items-center gap-3">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-[240px] justify-start text-left font-normal",
+                  !selectedDate && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {selectedDate ? formatInTimeZone(selectedDate, Intl.DateTimeFormat().resolvedOptions().timeZone, 'PPP') : <span>Pick a date</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <CalendarComponent
+                mode="single"
+                selected={selectedDate}
+                onSelect={(date) => date && setSelectedDate(date)}
+                initialFocus
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
+          <Button onClick={handleSave} disabled={isLoading}>
+            {isLoading ? 'Saving...' : 'Save Metrics'}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
