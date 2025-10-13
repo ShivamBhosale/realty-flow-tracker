@@ -28,9 +28,16 @@ const Settings = () => {
     goalAlerts: true,
     emailReports: false
   });
+  const [emailPrefs, setEmailPrefs] = useState({
+    weeklyReportEnabled: true,
+    weeklyReportDay: 1, // Monday
+    email: ''
+  });
+  const [isSendingReport, setIsSendingReport] = useState(false);
 
   useEffect(() => {
     loadProfile();
+    loadEmailPreferences();
   }, [user]);
 
   const loadProfile = async () => {
@@ -47,6 +54,30 @@ const Settings = () => {
         full_name: data.full_name || '',
         email: data.email || user.email || ''
       });
+    }
+  };
+
+  const loadEmailPreferences = async () => {
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from('email_preferences')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    
+    if (data) {
+      setEmailPrefs({
+        weeklyReportEnabled: data.weekly_report_enabled,
+        weeklyReportDay: data.weekly_report_day,
+        email: data.email
+      });
+    } else {
+      // Initialize with user's email
+      setEmailPrefs(prev => ({
+        ...prev,
+        email: user.email || ''
+      }));
     }
   };
 
@@ -90,6 +121,67 @@ const Settings = () => {
       description: "Please contact support to delete your account.",
       variant: "destructive",
     });
+  };
+
+  const handleUpdateEmailPrefs = async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    
+    const { error } = await supabase
+      .from('email_preferences')
+      .upsert({
+        user_id: user.id,
+        email: emailPrefs.email,
+        weekly_report_enabled: emailPrefs.weeklyReportEnabled,
+        weekly_report_day: emailPrefs.weeklyReportDay
+      });
+    
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update email preferences. Please try again.",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Email preferences updated successfully!",
+      });
+    }
+    
+    setIsLoading(false);
+  };
+
+  const handleSendTestReport = async () => {
+    if (!user) return;
+    
+    setIsSendingReport(true);
+    
+    try {
+      const response = await supabase.functions.invoke('send-email-report', {
+        body: { 
+          user_id: user.id,
+          timeframe: 'week'
+        }
+      });
+
+      if (response.error) throw response.error;
+      
+      toast({
+        title: "Success",
+        description: "Test email report sent! Check your inbox.",
+      });
+    } catch (error: any) {
+      console.error('Error sending test report:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send test report. Please try again.",
+        variant: "destructive",
+      });
+    }
+    
+    setIsSendingReport(false);
   };
 
   const getThemeIcon = () => {
@@ -240,22 +332,84 @@ const Settings = () => {
             />
           </div>
           
+        </CardContent>
+      </Card>
+
+      {/* Email Reports Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bell className="h-5 w-5" />
+            Email Reports
+          </CardTitle>
+          <CardDescription>
+            Configure automated email reports for your performance metrics
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="report-email">Email Address for Reports</Label>
+            <Input
+              id="report-email"
+              type="email"
+              value={emailPrefs.email}
+              onChange={(e) => setEmailPrefs(prev => ({ ...prev, email: e.target.value }))}
+              placeholder="Enter email for reports"
+            />
+          </div>
+
           <Separator />
-          
+
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label htmlFor="email-reports">Email Reports</Label>
+              <Label htmlFor="weekly-reports">Weekly Reports</Label>
               <p className="text-sm text-muted-foreground">
-                Receive weekly performance reports via email
+                Receive automated weekly performance reports
               </p>
             </div>
             <Switch
-              id="email-reports"
-              checked={notifications.emailReports}
+              id="weekly-reports"
+              checked={emailPrefs.weeklyReportEnabled}
               onCheckedChange={(checked) => 
-                setNotifications(prev => ({ ...prev, emailReports: checked }))
+                setEmailPrefs(prev => ({ ...prev, weeklyReportEnabled: checked }))
               }
             />
+          </div>
+
+          {emailPrefs.weeklyReportEnabled && (
+            <div className="space-y-2">
+              <Label htmlFor="report-day">Day of Week</Label>
+              <Select 
+                value={emailPrefs.weeklyReportDay.toString()} 
+                onValueChange={(value) => setEmailPrefs(prev => ({ ...prev, weeklyReportDay: parseInt(value) }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select day" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Sunday</SelectItem>
+                  <SelectItem value="1">Monday</SelectItem>
+                  <SelectItem value="2">Tuesday</SelectItem>
+                  <SelectItem value="3">Wednesday</SelectItem>
+                  <SelectItem value="4">Thursday</SelectItem>
+                  <SelectItem value="5">Friday</SelectItem>
+                  <SelectItem value="6">Saturday</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <Button onClick={handleUpdateEmailPrefs} disabled={isLoading}>
+              {isLoading ? 'Updating...' : 'Save Email Preferences'}
+            </Button>
+            <Button 
+              onClick={handleSendTestReport} 
+              variant="outline"
+              disabled={isSendingReport}
+            >
+              {isSendingReport ? 'Sending...' : 'Send Test Report'}
+            </Button>
           </div>
         </CardContent>
       </Card>
