@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { CalendarDays, TrendingUp, Target, Users, BarChart3, TrendingDown } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays } from 'date-fns';
+import { startOfMonth, endOfMonth, startOfYear, endOfYear, subDays } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 import ConversionFunnelChart from '@/components/charts/ConversionFunnelChart';
 import TrendChart from '@/components/charts/TrendChart';

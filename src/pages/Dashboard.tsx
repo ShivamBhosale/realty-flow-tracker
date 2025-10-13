@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CalendarDays, Phone, Users, Calendar, Home, FileText, HandHeart, Building, Clock, DollarSign, CalendarIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { format, formatInTimeZone, toZonedTime } from 'date-fns-tz';
+import { formatInTimeZone } from 'date-fns-tz';
 import { cn } from '@/lib/utils';
 import MetricCard from '@/components/dashboard/MetricCard';
 import ConversionInsights from '@/components/dashboard/ConversionInsights';
