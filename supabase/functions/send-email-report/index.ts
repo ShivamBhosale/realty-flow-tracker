@@ -15,6 +15,73 @@ const corsHeaders = {
 interface EmailReportRequest {
   user_id?: string;
   timeframe?: 'week' | 'month';
+  scheduled?: boolean;
+}
+
+// Helper to get current day of week (0 = Sunday, 1 = Monday, etc.)
+function getCurrentDayOfWeek(): number {
+  return new Date().getDay();
+}
+
+// Helper to log email send attempts
+async function logEmailAttempt(
+  supabase: any,
+  userId: string,
+  email: string,
+  reportType: string,
+  status: 'sent' | 'failed',
+  errorMessage?: string
+) {
+  try {
+    await supabase.from('email_logs').insert({
+      user_id: userId,
+      email,
+      report_type: reportType,
+      status,
+      error_message: errorMessage,
+    });
+  } catch (error) {
+    console.error('Error logging email attempt:', error);
+  }
+}
+
+// Helper to send email with retry logic
+async function sendEmailWithRetry(
+  email: string,
+  subject: string,
+  html: string,
+  maxRetries = 3
+): Promise<{ success: boolean; error?: string; id?: string }> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`Sending email to ${email} (attempt ${attempt}/${maxRetries})`);
+      
+      const response = await resend.emails.send({
+        from: 'Real Estate Analyzer <onboarding@resend.dev>',
+        to: [email],
+        subject,
+        html,
+      });
+
+      if (response.error) {
+        throw response.error;
+      }
+
+      console.log(`Email sent successfully to ${email}:`, response.data);
+      return { success: true, id: response.data?.id };
+    } catch (error: any) {
+      console.error(`Attempt ${attempt} failed for ${email}:`, error);
+      
+      if (attempt === maxRetries) {
+        return { success: false, error: error.message };
+      }
+      
+      // Wait before retry (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+    }
+  }
+  
+  return { success: false, error: 'Max retries exceeded' };
 }
 
 serve(async (req) => {
@@ -26,32 +93,52 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
     // Get request data
-    const { user_id, timeframe = 'week' } = await req.json() as EmailReportRequest;
+    const { user_id, timeframe = 'week', scheduled = false } = await req.json() as EmailReportRequest;
     
-    console.log('Generating email report for user:', user_id, 'timeframe:', timeframe);
+    const currentDay = getCurrentDayOfWeek();
+    console.log(`Report generation started - Scheduled: ${scheduled}, User: ${user_id || 'all'}, Day: ${currentDay}, Timeframe: ${timeframe}`);
 
-    // If user_id is provided, send report for that user only
-    // Otherwise, send to all users with weekly reports enabled
+    // Determine which users to email
     let usersToEmail: any[] = [];
     
     if (user_id) {
-      // Single user - get their email from profile
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('email, full_name')
+      // Single user - get their email from preferences or profile
+      const { data: prefs, error: prefsError } = await supabase
+        .from('email_preferences')
+        .select('*')
         .eq('user_id', user_id)
         .single();
       
-      if (profileError || !profile?.email) {
-        throw new Error('User profile or email not found');
+      if (prefsError || !prefs?.email) {
+        throw new Error('User email preferences not found');
       }
       
-      usersToEmail = [{ user_id, email: profile.email, full_name: profile.full_name }];
-    } else {
-      // Get all users with weekly reports enabled
+      usersToEmail = [prefs];
+      console.log(`Manual send for user: ${user_id}`);
+    } else if (scheduled) {
+      // Automated send - filter by day and enabled status
       const { data: preferences, error: prefError } = await supabase
         .from('email_preferences')
-        .select('user_id, email')
+        .select('*')
+        .eq('weekly_report_enabled', true)
+        .eq('weekly_report_day', currentDay);
+      
+      if (prefError) throw prefError;
+      if (!preferences || preferences.length === 0) {
+        console.log(`No users scheduled for reports on day ${currentDay}`);
+        return new Response(
+          JSON.stringify({ message: `No users scheduled for reports on day ${currentDay}` }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      usersToEmail = preferences;
+      console.log(`Scheduled send for ${preferences.length} users on day ${currentDay}`);
+    } else {
+      // Manual send for all users with weekly reports enabled
+      const { data: preferences, error: prefError } = await supabase
+        .from('email_preferences')
+        .select('*')
         .eq('weekly_report_enabled', true);
       
       if (prefError) throw prefError;
@@ -59,11 +146,12 @@ serve(async (req) => {
         console.log('No users with weekly reports enabled');
         return new Response(
           JSON.stringify({ message: 'No users with weekly reports enabled' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       
       usersToEmail = preferences;
+      console.log(`Manual send for ${preferences.length} users`);
     }
 
     // Calculate date range
@@ -73,6 +161,7 @@ serve(async (req) => {
     const endDate = now;
 
     const emailResults = [];
+    const reportType = scheduled ? 'weekly_scheduled' : 'manual';
     
     // Send email to each user
     for (const userInfo of usersToEmail) {
@@ -85,10 +174,23 @@ serve(async (req) => {
           .gte('date', startDate.toISOString().split('T')[0])
           .lte('date', endDate.toISOString().split('T')[0]);
         
-        if (metricsError) throw metricsError;
+        if (metricsError) {
+          console.error(`Error fetching metrics for ${userInfo.user_id}:`, metricsError);
+          throw metricsError;
+        }
         
         if (!metrics || metrics.length === 0) {
           console.log(`No metrics found for user ${userInfo.user_id}`);
+          // Log skipped
+          await logEmailAttempt(
+            supabase,
+            userInfo.user_id,
+            userInfo.email,
+            reportType,
+            'failed',
+            'No metrics data available'
+          );
+          emailResults.push({ email: userInfo.email, success: false, error: 'No metrics data' });
           continue;
         }
 
@@ -204,34 +306,63 @@ serve(async (req) => {
     
     <div class="footer">
       <p>Keep up the great work! 🎯</p>
-      <p><a href="${supabaseUrl.replace('https://', 'https://app.')}">View Detailed Dashboard</a></p>
     </div>
   </div>
 </body>
 </html>`;
 
-        // Send email using Resend
-        const emailResponse = await resend.emails.send({
-          from: 'Real Estate Analyzer <onboarding@resend.dev>',
-          to: [userInfo.email],
-          subject: `Your ${timeframe === 'week' ? 'Weekly' : 'Monthly'} Real Estate Performance Report`,
-          html: emailHtml,
-        });
+        // Send email with retry logic
+        const result = await sendEmailWithRetry(
+          userInfo.email,
+          `Your ${timeframe === 'week' ? 'Weekly' : 'Monthly'} Real Estate Performance Report`,
+          emailHtml
+        );
 
-        console.log(`Email sent to ${userInfo.email}:`, emailResponse);
-        emailResults.push({ email: userInfo.email, success: true, id: emailResponse.id });
-      } catch (error) {
-        console.error(`Error sending email to ${userInfo.email}:`, error);
+        // Log the attempt
+        await logEmailAttempt(
+          supabase,
+          userInfo.user_id,
+          userInfo.email,
+          reportType,
+          result.success ? 'sent' : 'failed',
+          result.error
+        );
+
+        emailResults.push({ 
+          email: userInfo.email, 
+          success: result.success,
+          error: result.error,
+          id: result.id
+        });
+      } catch (error: any) {
+        console.error(`Failed to send report to ${userInfo.email}:`, error);
+        
+        // Log the failure
+        await logEmailAttempt(
+          supabase,
+          userInfo.user_id,
+          userInfo.email,
+          reportType,
+          'failed',
+          error.message
+        );
+        
         emailResults.push({ email: userInfo.email, success: false, error: error.message });
       }
     }
 
+    const successCount = emailResults.filter(r => r.success).length;
+    const failureCount = emailResults.filter(r => !r.success).length;
+
+    console.log(`Report generation completed - Success: ${successCount}, Failed: ${failureCount}`);
+
     return new Response(
       JSON.stringify({ 
-        message: 'Email reports sent', 
+        message: 'Email reports processed', 
         results: emailResults,
         total: emailResults.length,
-        successful: emailResults.filter(r => r.success).length
+        successful: successCount,
+        failed: failureCount
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
