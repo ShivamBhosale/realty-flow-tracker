@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,9 +10,12 @@ import {
   DollarSign,
   User,
   Edit,
-  Trash2
+  Trash2,
+  Clock
 } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
+import { supabase } from '@/integrations/supabase/client';
+import { formatDistanceToNow } from 'date-fns';
 
 type Contact = Tables<'contacts'>;
 
@@ -29,6 +32,25 @@ const ContactCard: React.FC<ContactCardProps> = ({
   onDelete, 
   onAddInteraction 
 }) => {
+  const [lastInteraction, setLastInteraction] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadLastInteraction();
+  }, [contact.id]);
+
+  const loadLastInteraction = async () => {
+    const { data } = await supabase
+      .from('contact_interactions')
+      .select('created_at')
+      .eq('contact_id', contact.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (data) {
+      setLastInteraction(data.created_at);
+    }
+  };
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'new': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
@@ -141,6 +163,13 @@ const ContactCard: React.FC<ContactCardProps> = ({
         {contact.notes && (
           <div className="text-sm text-muted-foreground bg-muted/50 rounded p-2">
             {contact.notes}
+          </div>
+        )}
+
+        {lastInteraction && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            <span>Last contacted {formatDistanceToNow(new Date(lastInteraction), { addSuffix: true })}</span>
           </div>
         )}
 

@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import ContactCard from '@/components/contacts/ContactCard';
+import { ContactCardSkeleton } from '@/components/contacts/ContactCardSkeleton';
 import ContactInteractionDialog from '@/components/contacts/ContactInteractionDialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,8 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Phone, Mail, MapPin, Calendar, MessageSquare, Search, Filter } from 'lucide-react';
+import { Plus, Phone, Mail, MapPin, Calendar, MessageSquare, Search, Filter, Users } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 type Contact = Tables<'contacts'>;
 
@@ -43,6 +45,7 @@ const Contacts = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [interactionDialog, setInteractionDialog] = useState<{
@@ -78,6 +81,15 @@ const Contacts = () => {
       loadContacts();
     }
   }, [user]);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const loadContacts = async () => {
     if (!user) return;
@@ -193,11 +205,11 @@ const Contacts = () => {
   };
 
   const filteredContacts = contacts.filter(contact => {
-    const matchesSearch = searchTerm === '' || 
-      contact.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contact.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contact.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contact.phone?.includes(searchTerm);
+    const matchesSearch = debouncedSearch === '' || 
+      contact.first_name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      contact.last_name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      contact.email?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      contact.phone?.includes(debouncedSearch);
     
     const matchesStatus = statusFilter === 'all' || contact.status === statusFilter;
     const matchesType = typeFilter === 'all' || contact.contact_type === typeFilter;
@@ -600,19 +612,31 @@ const Contacts = () => {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-8">Loading contacts...</div>
-          ) : filteredContacts.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">No contacts found.</p>
-              {contacts.length === 0 && (
-                <Button 
-                  onClick={() => setIsDialogOpen(true)} 
-                  className="mt-4"
-                >
-                  Add Your First Contact
-                </Button>
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...Array(6)].map((_, i) => (
+                <ContactCardSkeleton key={i} />
+              ))}
             </div>
+          ) : contacts.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title="No contacts yet"
+              description="Start building your network by adding your first contact. Track leads, clients, and referral partners all in one place."
+              actionLabel="Add Your First Contact"
+              onAction={() => setIsDialogOpen(true)}
+            />
+          ) : filteredContacts.length === 0 ? (
+            <EmptyState
+              icon={Search}
+              title="No matches found"
+              description="Try adjusting your search or filters to find what you're looking for."
+              actionLabel="Clear Filters"
+              onAction={() => {
+                setSearchTerm('');
+                setStatusFilter('all');
+                setTypeFilter('all');
+              }}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredContacts.map((contact) => (

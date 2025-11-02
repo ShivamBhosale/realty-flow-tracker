@@ -4,12 +4,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { CalendarDays, TrendingUp, Target, Users, BarChart3, TrendingDown } from 'lucide-react';
 import { startOfMonth, endOfMonth, startOfYear, endOfYear, subDays } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 import ConversionFunnelChart from '@/components/charts/ConversionFunnelChart';
 import TrendChart from '@/components/charts/TrendChart';
 import GoalProgressChart from '@/components/charts/GoalProgressChart';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 interface MetricsSummary {
   calls_made: number;
@@ -167,8 +169,28 @@ const Reports = () => {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-8">Loading metrics...</div>
-      ) : metrics ? (
+        <div className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <Skeleton className="h-4 w-24" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-16 mb-2" />
+                  <Skeleton className="h-3 w-32" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      ) : !metrics ? (
+        <EmptyState
+          icon={BarChart3}
+          title="No data available"
+          description="Start tracking your daily metrics to see reports and analytics. Add your first entry on the Dashboard to get started."
+        />
+      ) : (
         <>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
@@ -330,13 +352,6 @@ const Reports = () => {
             </Card>
           </div>
         </>
-      ) : (
-        <div className="text-center py-8">
-          <p className="text-muted-foreground">No data available for the selected timeframe.</p>
-          <Button onClick={loadMetrics} className="mt-4">
-            Refresh Data
-          </Button>
-        </div>
       )}
     </div>
   );
