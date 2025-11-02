@@ -103,18 +103,31 @@ serve(async (req) => {
     
     if (user_id) {
       // Single user - get their email from preferences or profile
-      const { data: prefs, error: prefsError } = await supabase
+      const { data: prefs } = await supabase
         .from('email_preferences')
         .select('*')
         .eq('user_id', user_id)
-        .single();
+        .maybeSingle();
       
-      if (prefsError || !prefs?.email) {
-        throw new Error('User email preferences not found');
+      let emailToUse = prefs?.email;
+      
+      // If no preferences, fall back to profile email
+      if (!emailToUse) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('user_id', user_id)
+          .maybeSingle();
+        
+        emailToUse = profile?.email;
+        
+        if (!emailToUse) {
+          throw new Error('User email not found in preferences or profile');
+        }
       }
       
-      usersToEmail = [prefs];
-      console.log(`Manual send for user: ${user_id}`);
+      usersToEmail = [{ user_id, email: emailToUse, weekly_report_enabled: true, weekly_report_day: 0 }];
+      console.log(`Manual send for user: ${user_id}, email: ${emailToUse}`);
     } else if (scheduled) {
       // Automated send - filter by day and enabled status
       const { data: preferences, error: prefError } = await supabase
