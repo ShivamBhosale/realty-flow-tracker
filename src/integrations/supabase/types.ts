@@ -70,16 +70,24 @@ export type Database = {
           budget_max: number | null
           budget_min: number | null
           city: string | null
+          closed_date: string | null
           contact_type: Database["public"]["Enums"]["contact_type"]
+          contract_date: string | null
           created_at: string
+          days_on_market: number | null
           email: string | null
+          estimated_commission: number | null
+          fee: number | null
           first_name: string
           id: string
           last_name: string
           lead_source: Database["public"]["Enums"]["lead_source"] | null
           notes: string | null
+          paid_income: number | null
+          pending_date: string | null
           phone: string | null
           preferred_areas: string[] | null
+          price: number | null
           state: string | null
           status: Database["public"]["Enums"]["contact_status"]
           updated_at: string
@@ -91,16 +99,24 @@ export type Database = {
           budget_max?: number | null
           budget_min?: number | null
           city?: string | null
+          closed_date?: string | null
           contact_type?: Database["public"]["Enums"]["contact_type"]
+          contract_date?: string | null
           created_at?: string
+          days_on_market?: number | null
           email?: string | null
+          estimated_commission?: number | null
+          fee?: number | null
           first_name: string
           id?: string
           last_name: string
           lead_source?: Database["public"]["Enums"]["lead_source"] | null
           notes?: string | null
+          paid_income?: number | null
+          pending_date?: string | null
           phone?: string | null
           preferred_areas?: string[] | null
+          price?: number | null
           state?: string | null
           status?: Database["public"]["Enums"]["contact_status"]
           updated_at?: string
@@ -112,16 +128,24 @@ export type Database = {
           budget_max?: number | null
           budget_min?: number | null
           city?: string | null
+          closed_date?: string | null
           contact_type?: Database["public"]["Enums"]["contact_type"]
+          contract_date?: string | null
           created_at?: string
+          days_on_market?: number | null
           email?: string | null
+          estimated_commission?: number | null
+          fee?: number | null
           first_name?: string
           id?: string
           last_name?: string
           lead_source?: Database["public"]["Enums"]["lead_source"] | null
           notes?: string | null
+          paid_income?: number | null
+          pending_date?: string | null
           phone?: string | null
           preferred_areas?: string[] | null
+          price?: number | null
           state?: string | null
           status?: Database["public"]["Enums"]["contact_status"]
           updated_at?: string

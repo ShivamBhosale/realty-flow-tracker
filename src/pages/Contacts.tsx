@@ -2,21 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import ContactCard from '@/components/contacts/ContactCard';
-import { ContactCardSkeleton } from '@/components/contacts/ContactCardSkeleton';
-import ContactInteractionDialog from '@/components/contacts/ContactInteractionDialog';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CSVImportDialog } from '@/components/contacts/CSVImportDialog';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Phone, Mail, MapPin, Calendar, MessageSquare, Search, Filter, Users } from 'lucide-react';
+import { Plus, Upload, Edit, Trash2, Search } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { format } from 'date-fns';
 
 type Contact = Tables<'contacts'>;
 
@@ -36,6 +33,14 @@ interface NewContact {
   budget_min: string;
   budget_max: string;
   preferred_areas: string;
+  contract_date: string;
+  closed_date: string;
+  pending_date: string;
+  fee: string;
+  price: string;
+  paid_income: string;
+  estimated_commission: string;
+  days_on_market: string;
 }
 
 const Contacts = () => {
@@ -44,19 +49,11 @@ const Contacts = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [interactionDialog, setInteractionDialog] = useState<{
-    open: boolean;
-    contactId: string;
-    contactName: string;
-  }>({
-    open: false,
-    contactId: '',
-    contactName: ''
-  });
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   
   const [newContact, setNewContact] = useState<NewContact>({
     first_name: '',
@@ -74,6 +71,14 @@ const Contacts = () => {
     budget_min: '',
     budget_max: '',
     preferred_areas: '',
+    contract_date: '',
+    closed_date: '',
+    pending_date: '',
+    fee: '',
+    price: '',
+    paid_income: '',
+    estimated_commission: '',
+    days_on_market: '',
   });
 
   useEffect(() => {
@@ -82,7 +87,6 @@ const Contacts = () => {
     }
   }, [user]);
 
-  // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchTerm);
@@ -114,6 +118,71 @@ const Contacts = () => {
     setIsLoading(false);
   };
 
+  const updateDailyMetrics = async (contactData: any, isDelete: boolean = false) => {
+    if (!user) return;
+
+    const metricsDate = contactData.closed_date || contactData.contract_date;
+    if (!metricsDate) return;
+
+    try {
+      const { data: existingMetrics } = await supabase
+        .from('daily_metrics')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('date', metricsDate)
+        .maybeSingle();
+
+      if (existingMetrics) {
+        const updates: any = {};
+        const multiplier = isDelete ? -1 : 1;
+        
+        if (contactData.closed_date) {
+          updates.closed_deals = Math.max(0, (existingMetrics.closed_deals || 0) + (multiplier * 1));
+          if (contactData.paid_income) {
+            updates.volume_closed = Math.max(0, (existingMetrics.volume_closed || 0) + (multiplier * parseFloat(contactData.paid_income)));
+          }
+        }
+        
+        if (contactData.contract_date) {
+          if (contactData.contact_type === 'buyer') {
+            updates.buyers_signed = Math.max(0, (existingMetrics.buyers_signed || 0) + (multiplier * 1));
+          } else if (contactData.contact_type === 'seller') {
+            updates.listings_taken = Math.max(0, (existingMetrics.listings_taken || 0) + (multiplier * 1));
+          }
+        }
+
+        await supabase
+          .from('daily_metrics')
+          .update(updates)
+          .eq('id', existingMetrics.id);
+      } else if (!isDelete) {
+        const newMetrics: any = {
+          user_id: user.id,
+          date: metricsDate,
+        };
+
+        if (contactData.closed_date) {
+          newMetrics.closed_deals = 1;
+          newMetrics.volume_closed = contactData.paid_income ? parseFloat(contactData.paid_income) : 0;
+        }
+        
+        if (contactData.contract_date) {
+          if (contactData.contact_type === 'buyer') {
+            newMetrics.buyers_signed = 1;
+          } else if (contactData.contact_type === 'seller') {
+            newMetrics.listings_taken = 1;
+          }
+        }
+
+        await supabase
+          .from('daily_metrics')
+          .insert(newMetrics);
+      }
+    } catch (err) {
+      console.error('Error updating daily metrics:', err);
+    }
+  };
+
   const handleCreateContact = async () => {
     if (!user) return;
     
@@ -143,6 +212,14 @@ const Contacts = () => {
       budget_min: newContact.budget_min ? parseFloat(newContact.budget_min) : null,
       budget_max: newContact.budget_max ? parseFloat(newContact.budget_max) : null,
       preferred_areas: newContact.preferred_areas ? newContact.preferred_areas.split(',').map(area => area.trim()) : null,
+      contract_date: newContact.contract_date || null,
+      closed_date: newContact.closed_date || null,
+      pending_date: newContact.pending_date || null,
+      fee: newContact.fee ? parseFloat(newContact.fee) : null,
+      price: newContact.price ? parseFloat(newContact.price) : null,
+      paid_income: newContact.paid_income ? parseFloat(newContact.paid_income) : null,
+      estimated_commission: newContact.estimated_commission ? parseFloat(newContact.estimated_commission) : null,
+      days_on_market: newContact.days_on_market ? parseInt(newContact.days_on_market) : null,
     };
 
     const { error } = await supabase
@@ -156,6 +233,9 @@ const Contacts = () => {
         variant: "destructive",
       });
     } else {
+      // Update daily metrics if dates are present
+      await updateDailyMetrics(contactData);
+      
       toast({
         title: "Success",
         description: "Contact created successfully!",
@@ -177,79 +257,18 @@ const Contacts = () => {
         budget_min: '',
         budget_max: '',
         preferred_areas: '',
+        contract_date: '',
+        closed_date: '',
+        pending_date: '',
+        fee: '',
+        price: '',
+        paid_income: '',
+        estimated_commission: '',
+        days_on_market: '',
       });
       loadContacts();
     }
   };
-
-  const getStatusColor = (status: Contact['status']) => {
-    switch (status) {
-      case 'new': return 'bg-blue-100 text-blue-800';
-      case 'contacted': return 'bg-yellow-100 text-yellow-800';
-      case 'qualified': return 'bg-green-100 text-green-800';
-      case 'interested': return 'bg-purple-100 text-purple-800';
-      case 'not_interested': return 'bg-gray-100 text-gray-800';
-      case 'do_not_call': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getTypeColor = (type: Contact['contact_type']) => {
-    switch (type) {
-      case 'buyer': return 'bg-green-100 text-green-800';
-      case 'seller': return 'bg-orange-100 text-orange-800';
-      case 'investor': return 'bg-purple-100 text-purple-800';
-      case 'referral_partner': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const filteredContacts = contacts.filter(contact => {
-    const matchesSearch = debouncedSearch === '' || 
-      contact.first_name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      contact.last_name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      contact.email?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      contact.phone?.includes(debouncedSearch);
-    
-    const matchesStatus = statusFilter === 'all' || contact.status === statusFilter;
-    const matchesType = typeFilter === 'all' || contact.contact_type === typeFilter;
-    
-    return matchesSearch && matchesStatus && matchesType;
-  });
-
-  const handleAddInteraction = (contactId: string, contactName: string) => {
-    setInteractionDialog({
-      open: true,
-      contactId,
-      contactName
-    });
-  };
-
-  const handleDeleteContact = async (contactId: string) => {
-    if (!window.confirm('Are you sure you want to delete this contact?')) return;
-
-    const { error } = await supabase
-      .from('contacts')
-      .delete()
-      .eq('id', contactId);
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete contact. Please try again.",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Success",
-        description: "Contact deleted successfully!",
-      });
-      loadContacts();
-    }
-  };
-
-  const [editingContact, setEditingContact] = useState<Contact | null>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const handleEditContact = (contact: Contact) => {
     setEditingContact(contact);
@@ -277,6 +296,14 @@ const Contacts = () => {
         budget_min: editingContact.budget_min,
         budget_max: editingContact.budget_max,
         preferred_areas: editingContact.preferred_areas,
+        contract_date: editingContact.contract_date,
+        closed_date: editingContact.closed_date,
+        pending_date: editingContact.pending_date,
+        fee: editingContact.fee,
+        price: editingContact.price,
+        paid_income: editingContact.paid_income,
+        estimated_commission: editingContact.estimated_commission,
+        days_on_market: editingContact.days_on_market,
       })
       .eq('id', editingContact.id);
 
@@ -287,6 +314,8 @@ const Contacts = () => {
         variant: "destructive",
       });
     } else {
+      await updateDailyMetrics(editingContact);
+      
       toast({
         title: "Success",
         description: "Contact updated successfully!",
@@ -295,6 +324,51 @@ const Contacts = () => {
       setEditingContact(null);
       loadContacts();
     }
+  };
+
+  const handleDeleteContact = async (contact: Contact) => {
+    if (!window.confirm('Are you sure you want to delete this contact?')) return;
+
+    await updateDailyMetrics(contact, true);
+
+    const { error } = await supabase
+      .from('contacts')
+      .delete()
+      .eq('id', contact.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete contact. Please try again.",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Contact deleted successfully!",
+      });
+      loadContacts();
+    }
+  };
+
+  const filteredContacts = contacts.filter(contact => {
+    const matchesSearch = debouncedSearch === '' || 
+      contact.first_name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      contact.last_name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      contact.email?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      contact.phone?.includes(debouncedSearch);
+    
+    return matchesSearch;
+  });
+
+  const formatCurrency = (value: number | null) => {
+    if (!value) return '-';
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(value);
+  };
+
+  const formatDate = (date: string | null) => {
+    if (!date) return '-';
+    return format(new Date(date), 'MM/dd/yyyy');
   };
 
   return (
@@ -307,418 +381,395 @@ const Contacts = () => {
           </p>
         </div>
         
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Contact
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Add New Contact</DialogTitle>
-              <DialogDescription>
-                Create a new contact record. Fields marked with * are required.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="first_name">First Name *</Label>
-                  <Input
-                    id="first_name"
-                    value={newContact.first_name}
-                    onChange={(e) => setNewContact(prev => ({ ...prev, first_name: e.target.value }))}
-                    placeholder="John"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="last_name">Last Name *</Label>
-                  <Input
-                    id="last_name"
-                    value={newContact.last_name}
-                    onChange={(e) => setNewContact(prev => ({ ...prev, last_name: e.target.value }))}
-                    placeholder="Doe"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={newContact.email}
-                    onChange={(e) => setNewContact(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="john@example.com"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
-                    value={newContact.phone}
-                    onChange={(e) => setNewContact(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="(555) 123-4567"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <Input
-                  id="address"
-                  value={newContact.address}
-                  onChange={(e) => setNewContact(prev => ({ ...prev, address: e.target.value }))}
-                  placeholder="123 Main St"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="city">City</Label>
-                  <Input
-                    id="city"
-                    value={newContact.city}
-                    onChange={(e) => setNewContact(prev => ({ ...prev, city: e.target.value }))}
-                    placeholder="New York"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="state">State</Label>
-                  <Input
-                    id="state"
-                    value={newContact.state}
-                    onChange={(e) => setNewContact(prev => ({ ...prev, state: e.target.value }))}
-                    placeholder="NY"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="zip_code">ZIP Code</Label>
-                  <Input
-                    id="zip_code"
-                    value={newContact.zip_code}
-                    onChange={(e) => setNewContact(prev => ({ ...prev, zip_code: e.target.value }))}
-                    placeholder="10001"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="contact_type">Contact Type</Label>
-                  <Select 
-                    value={newContact.contact_type} 
-                    onValueChange={(value: Contact['contact_type']) => 
-                      setNewContact(prev => ({ ...prev, contact_type: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="buyer">Buyer</SelectItem>
-                      <SelectItem value="seller">Seller</SelectItem>
-                      <SelectItem value="investor">Investor</SelectItem>
-                      <SelectItem value="referral_partner">Referral Partner</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="status">Status</Label>
-                  <Select 
-                    value={newContact.status} 
-                    onValueChange={(value: Contact['status']) => 
-                      setNewContact(prev => ({ ...prev, status: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="new">New</SelectItem>
-                      <SelectItem value="contacted">Contacted</SelectItem>
-                      <SelectItem value="qualified">Qualified</SelectItem>
-                      <SelectItem value="interested">Interested</SelectItem>
-                      <SelectItem value="not_interested">Not Interested</SelectItem>
-                      <SelectItem value="do_not_call">Do Not Call</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="lead_source">Lead Source</Label>
-                <Select 
-                  value={newContact.lead_source || ''} 
-                  onValueChange={(value: Contact['lead_source']) => 
-                    setNewContact(prev => ({ ...prev, lead_source: value || undefined }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select source" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="referral">Referral</SelectItem>
-                    <SelectItem value="website">Website</SelectItem>
-                    <SelectItem value="social_media">Social Media</SelectItem>
-                    <SelectItem value="cold_call">Cold Call</SelectItem>
-                    <SelectItem value="open_house">Open House</SelectItem>
-                    <SelectItem value="advertisement">Advertisement</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="budget_min">Budget Min</Label>
-                  <Input
-                    id="budget_min"
-                    type="number"
-                    value={newContact.budget_min}
-                    onChange={(e) => setNewContact(prev => ({ ...prev, budget_min: e.target.value }))}
-                    placeholder="250000"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="budget_max">Budget Max</Label>
-                  <Input
-                    id="budget_max"
-                    type="number"
-                    value={newContact.budget_max}
-                    onChange={(e) => setNewContact(prev => ({ ...prev, budget_max: e.target.value }))}
-                    placeholder="500000"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="preferred_areas">Preferred Areas</Label>
-                <Input
-                  id="preferred_areas"
-                  value={newContact.preferred_areas}
-                  onChange={(e) => setNewContact(prev => ({ ...prev, preferred_areas: e.target.value }))}
-                  placeholder="Downtown, Midtown, Upper East Side"
-                />
-                <p className="text-xs text-muted-foreground">Separate multiple areas with commas</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="notes">Notes</Label>
-                <Textarea
-                  id="notes"
-                  value={newContact.notes}
-                  onChange={(e) => setNewContact(prev => ({ ...prev, notes: e.target.value }))}
-                  placeholder="Additional notes about this contact..."
-                  rows={3}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                Cancel
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsImportDialogOpen(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Import CSV
+          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Contact
               </Button>
-              <Button onClick={handleCreateContact}>
-                Create Contact
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Add New Contact</DialogTitle>
+                <DialogDescription>
+                  Create a new contact record. Fields marked with * are required.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="first_name">First Name *</Label>
+                    <Input
+                      id="first_name"
+                      value={newContact.first_name}
+                      onChange={(e) => setNewContact(prev => ({ ...prev, first_name: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="last_name">Last Name *</Label>
+                    <Input
+                      id="last_name"
+                      value={newContact.last_name}
+                      onChange={(e) => setNewContact(prev => ({ ...prev, last_name: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Email</Label>
+                    <Input
+                      type="email"
+                      value={newContact.email}
+                      onChange={(e) => setNewContact(prev => ({ ...prev, email: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Phone</Label>
+                    <Input
+                      value={newContact.phone}
+                      onChange={(e) => setNewContact(prev => ({ ...prev, phone: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Address</Label>
+                  <Input
+                    value={newContact.address}
+                    onChange={(e) => setNewContact(prev => ({ ...prev, address: e.target.value }))}
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>City</Label>
+                    <Input
+                      value={newContact.city}
+                      onChange={(e) => setNewContact(prev => ({ ...prev, city: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>State</Label>
+                    <Input
+                      value={newContact.state}
+                      onChange={(e) => setNewContact(prev => ({ ...prev, state: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>ZIP Code</Label>
+                    <Input
+                      value={newContact.zip_code}
+                      onChange={(e) => setNewContact(prev => ({ ...prev, zip_code: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Contact Type</Label>
+                    <Select 
+                      value={newContact.contact_type} 
+                      onValueChange={(value: Contact['contact_type']) => 
+                        setNewContact(prev => ({ ...prev, contact_type: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="buyer">Buyer</SelectItem>
+                        <SelectItem value="seller">Seller</SelectItem>
+                        <SelectItem value="investor">Investor</SelectItem>
+                        <SelectItem value="referral_partner">Referral Partner</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select 
+                      value={newContact.status} 
+                      onValueChange={(value: Contact['status']) => 
+                        setNewContact(prev => ({ ...prev, status: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="new">New</SelectItem>
+                        <SelectItem value="contacted">Contacted</SelectItem>
+                        <SelectItem value="qualified">Qualified</SelectItem>
+                        <SelectItem value="interested">Interested</SelectItem>
+                        <SelectItem value="not_interested">Not Interested</SelectItem>
+                        <SelectItem value="do_not_call">Do Not Call</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Contract Date</Label>
+                    <Input
+                      type="date"
+                      value={newContact.contract_date}
+                      onChange={(e) => setNewContact(prev => ({ ...prev, contract_date: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Closed Date</Label>
+                    <Input
+                      type="date"
+                      value={newContact.closed_date}
+                      onChange={(e) => setNewContact(prev => ({ ...prev, closed_date: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Pending Date</Label>
+                    <Input
+                      type="date"
+                      value={newContact.pending_date}
+                      onChange={(e) => setNewContact(prev => ({ ...prev, pending_date: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Price</Label>
+                    <Input
+                      type="number"
+                      value={newContact.price}
+                      onChange={(e) => setNewContact(prev => ({ ...prev, price: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Fee</Label>
+                    <Input
+                      type="number"
+                      value={newContact.fee}
+                      onChange={(e) => setNewContact(prev => ({ ...prev, fee: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Paid Income</Label>
+                    <Input
+                      type="number"
+                      value={newContact.paid_income}
+                      onChange={(e) => setNewContact(prev => ({ ...prev, paid_income: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Estimated Commission</Label>
+                    <Input
+                      type="number"
+                      value={newContact.estimated_commission}
+                      onChange={(e) => setNewContact(prev => ({ ...prev, estimated_commission: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Days on Market</Label>
+                  <Input
+                    type="number"
+                    value={newContact.days_on_market}
+                    onChange={(e) => setNewContact(prev => ({ ...prev, days_on_market: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleCreateContact}>Create Contact</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      {/* Filters and Search */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filters
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="search">Search</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="search"
-                  className="pl-10"
-                  placeholder="Search contacts..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="status-filter">Status</Label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="new">New</SelectItem>
-                  <SelectItem value="contacted">Contacted</SelectItem>
-                  <SelectItem value="qualified">Qualified</SelectItem>
-                  <SelectItem value="interested">Interested</SelectItem>
-                  <SelectItem value="not_interested">Not Interested</SelectItem>
-                  <SelectItem value="do_not_call">Do Not Call</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="type-filter">Type</Label>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="buyer">Buyer</SelectItem>
-                  <SelectItem value="seller">Seller</SelectItem>
-                  <SelectItem value="investor">Investor</SelectItem>
-                  <SelectItem value="referral_partner">Referral Partner</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="flex items-end">
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setSearchTerm('');
-                  setStatusFilter('all');
-                  setTypeFilter('all');
-                }}
-              >
-                Clear Filters
-              </Button>
+        <CardContent className="p-6">
+          <div className="mb-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search contacts..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Contacts Grid */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Contact List ({filteredContacts.length})</CardTitle>
-          <CardDescription>
-            Manage and track your real estate contacts
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
           {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[...Array(6)].map((_, i) => (
-                <ContactCardSkeleton key={i} />
-              ))}
-            </div>
-          ) : contacts.length === 0 ? (
-            <EmptyState
-              icon={Users}
-              title="No contacts yet"
-              description="Start building your network by adding your first contact. Track leads, clients, and referral partners all in one place."
-              actionLabel="Add Your First Contact"
-              onAction={() => setIsDialogOpen(true)}
-            />
+            <div className="text-center py-8">Loading contacts...</div>
           ) : filteredContacts.length === 0 ? (
             <EmptyState
-              icon={Search}
-              title="No matches found"
-              description="Try adjusting your search or filters to find what you're looking for."
-              actionLabel="Clear Filters"
-              onAction={() => {
-                setSearchTerm('');
-                setStatusFilter('all');
-                setTypeFilter('all');
-              }}
+              icon={Plus}
+              title="No contacts found"
+              description="Get started by adding your first contact or importing from CSV."
+              actionLabel="Add Contact"
+              onAction={() => setIsDialogOpen(true)}
             />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredContacts.map((contact) => (
-                <ContactCard
-                  key={contact.id}
-                  contact={contact}
-                  onEdit={handleEditContact}
-                  onDelete={handleDeleteContact}
-                  onAddInteraction={handleAddInteraction}
-                />
-              ))}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-primary">
+                    <TableHead className="text-primary-foreground">ACTION</TableHead>
+                    <TableHead className="text-primary-foreground">CLIENT NAME</TableHead>
+                    <TableHead className="text-primary-foreground">ADDRESS</TableHead>
+                    <TableHead className="text-primary-foreground">TYPE</TableHead>
+                    <TableHead className="text-primary-foreground">STATUS</TableHead>
+                    <TableHead className="text-primary-foreground">CONTRACT DATE</TableHead>
+                    <TableHead className="text-primary-foreground">CLOSED DATE</TableHead>
+                    <TableHead className="text-primary-foreground">PENDING DATE</TableHead>
+                    <TableHead className="text-primary-foreground">FEE</TableHead>
+                    <TableHead className="text-primary-foreground">PRICE</TableHead>
+                    <TableHead className="text-primary-foreground">PAID INCOME</TableHead>
+                    <TableHead className="text-primary-foreground">ESTIMATED COMMISSION</TableHead>
+                    <TableHead className="text-primary-foreground">CITY</TableHead>
+                    <TableHead className="text-primary-foreground">DAYS ON MARKET</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredContacts.map((contact) => (
+                    <TableRow key={contact.id}>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleEditContact(contact)}
+                            className="h-8 w-8 p-0 bg-green-500 hover:bg-green-600 text-white"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteContact(contact)}
+                            className="h-8 w-8 p-0 bg-red-500 hover:bg-red-600 text-white"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {contact.first_name} {contact.last_name}
+                      </TableCell>
+                      <TableCell>{contact.address || '-'}</TableCell>
+                      <TableCell className="capitalize">{contact.contact_type}</TableCell>
+                      <TableCell className="capitalize">{contact.status.replace('_', ' ')}</TableCell>
+                      <TableCell>{formatDate(contact.contract_date)}</TableCell>
+                      <TableCell>{formatDate(contact.closed_date)}</TableCell>
+                      <TableCell>{formatDate(contact.pending_date)}</TableCell>
+                      <TableCell>{formatCurrency(contact.fee)}</TableCell>
+                      <TableCell>{formatCurrency(contact.price)}</TableCell>
+                      <TableCell>{formatCurrency(contact.paid_income)}</TableCell>
+                      <TableCell>{formatCurrency(contact.estimated_commission)}</TableCell>
+                      <TableCell>{contact.city || '-'}</TableCell>
+                      <TableCell>{contact.days_on_market || '-'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>
       </Card>
 
-      <ContactInteractionDialog
-        contactId={interactionDialog.contactId}
-        contactName={interactionDialog.contactName}
-        open={interactionDialog.open}
-        onOpenChange={(open) => setInteractionDialog(prev => ({ ...prev, open }))}
-        onSuccess={() => {
-          toast({
-            title: "Success",
-            description: "Interaction added successfully!",
-          });
-        }}
+      <CSVImportDialog
+        open={isImportDialogOpen}
+        onOpenChange={setIsImportDialogOpen}
+        onImportComplete={loadContacts}
       />
 
-      {/* Edit Contact Dialog */}
+      {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Contact</DialogTitle>
-            <DialogDescription>
-              Update contact information.
-            </DialogDescription>
           </DialogHeader>
           {editingContact && (
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit_first_name">First Name *</Label>
+                  <Label>First Name</Label>
                   <Input
-                    id="edit_first_name"
                     value={editingContact.first_name}
                     onChange={(e) => setEditingContact(prev => prev ? { ...prev, first_name: e.target.value } : null)}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit_last_name">Last Name *</Label>
+                  <Label>Last Name</Label>
                   <Input
-                    id="edit_last_name"
                     value={editingContact.last_name}
                     onChange={(e) => setEditingContact(prev => prev ? { ...prev, last_name: e.target.value } : null)}
                   />
                 </div>
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
+
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit_email">Email</Label>
+                  <Label>Contract Date</Label>
                   <Input
-                    id="edit_email"
-                    type="email"
-                    value={editingContact.email || ''}
-                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, email: e.target.value } : null)}
+                    type="date"
+                    value={editingContact.contract_date || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, contract_date: e.target.value } : null)}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit_phone">Phone</Label>
+                  <Label>Closed Date</Label>
                   <Input
-                    id="edit_phone"
-                    value={editingContact.phone || ''}
-                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, phone: e.target.value } : null)}
+                    type="date"
+                    value={editingContact.closed_date || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, closed_date: e.target.value } : null)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Pending Date</Label>
+                  <Input
+                    type="date"
+                    value={editingContact.pending_date || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, pending_date: e.target.value } : null)}
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit_contact_type">Contact Type</Label>
+                  <Label>Price</Label>
+                  <Input
+                    type="number"
+                    value={editingContact.price || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, price: parseFloat(e.target.value) } : null)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Paid Income</Label>
+                  <Input
+                    type="number"
+                    value={editingContact.paid_income || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, paid_income: parseFloat(e.target.value) } : null)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Contact Type</Label>
                   <Select 
                     value={editingContact.contact_type} 
                     onValueChange={(value: Contact['contact_type']) => 
@@ -737,7 +788,7 @@ const Contacts = () => {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit_status">Status</Label>
+                  <Label>Status</Label>
                   <Select 
                     value={editingContact.status} 
                     onValueChange={(value: Contact['status']) => 
@@ -758,28 +809,13 @@ const Contacts = () => {
                   </Select>
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="edit_notes">Notes</Label>
-                <Textarea
-                  id="edit_notes"
-                  value={editingContact.notes || ''}
-                  onChange={(e) => setEditingContact(prev => prev ? { ...prev, notes: e.target.value } : null)}
-                  rows={3}
-                />
-              </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setIsEditDialogOpen(false);
-              setEditingContact(null);
-            }}>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleUpdateContact}>
-              Update Contact
-            </Button>
+            <Button onClick={handleUpdateContact}>Update Contact</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
