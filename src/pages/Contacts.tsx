@@ -513,6 +513,44 @@ const Contacts = () => {
                   </div>
                 </div>
 
+                <div className="space-y-2">
+                  <Label>Source Type</Label>
+                  <Select 
+                    value={newContact.lead_source || ''} 
+                    onValueChange={(value: Contact['lead_source']) => 
+                      setNewContact(prev => ({ ...prev, lead_source: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select source type" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background">
+                      <SelectItem value="past_client">Past Client</SelectItem>
+                      <SelectItem value="expired_listing">Expired Listing</SelectItem>
+                      <SelectItem value="for_sale_by_owner">For Sale by Owner</SelectItem>
+                      <SelectItem value="center_of_influence">Center of Influence</SelectItem>
+                      <SelectItem value="referral">Referral</SelectItem>
+                      <SelectItem value="just_listed">Just Listed</SelectItem>
+                      <SelectItem value="just_sold">Just Sold</SelectItem>
+                      <SelectItem value="sign_call">Sign Call</SelectItem>
+                      <SelectItem value="advertisement_call">Advertisement Call</SelectItem>
+                      <SelectItem value="paid_lead_source">Paid Lead Source</SelectItem>
+                      <SelectItem value="social_media">Social Media</SelectItem>
+                      <SelectItem value="cold_call">Cold Call</SelectItem>
+                      <SelectItem value="open_house">Open House</SelectItem>
+                      <SelectItem value="door_knocking">Door Knocking</SelectItem>
+                      <SelectItem value="frbo">Frbo</SelectItem>
+                      <SelectItem value="probate">Probate</SelectItem>
+                      <SelectItem value="absentee_owner">Absentee Owner</SelectItem>
+                      <SelectItem value="attorney_referral">Attorney Referral</SelectItem>
+                      <SelectItem value="agent_2_agent_calls">Agent 2 Agent Calls</SelectItem>
+                      <SelectItem value="website">Website</SelectItem>
+                      <SelectItem value="advertisement">Advertisement</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>Contract Date</Label>
@@ -632,6 +670,7 @@ const Contacts = () => {
                     <TableHead className="text-primary-foreground">ADDRESS</TableHead>
                     <TableHead className="text-primary-foreground">TYPE</TableHead>
                     <TableHead className="text-primary-foreground">STATUS</TableHead>
+                    <TableHead className="text-primary-foreground">SOURCE TYPE</TableHead>
                     <TableHead className="text-primary-foreground">CONTRACT DATE</TableHead>
                     <TableHead className="text-primary-foreground">CLOSED DATE</TableHead>
                     <TableHead className="text-primary-foreground">PENDING DATE</TableHead>
@@ -672,6 +711,7 @@ const Contacts = () => {
                       <TableCell>{contact.address || '-'}</TableCell>
                       <TableCell className="capitalize">{contact.contact_type}</TableCell>
                       <TableCell className="capitalize">{contact.status.replace('_', ' ')}</TableCell>
+                      <TableCell className="capitalize">{contact.lead_source?.replace(/_/g, ' ') || '-'}</TableCell>
                       <TableCell>{formatDate(contact.contract_date)}</TableCell>
                       <TableCell>{formatDate(contact.closed_date)}</TableCell>
                       <TableCell>{formatDate(contact.pending_date)}</TableCell>
@@ -808,6 +848,44 @@ const Contacts = () => {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Source Type</Label>
+                <Select 
+                  value={editingContact.lead_source || ''} 
+                  onValueChange={(value: Contact['lead_source']) => 
+                    setEditingContact(prev => prev ? { ...prev, lead_source: value } : null)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select source type" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background">
+                    <SelectItem value="past_client">Past Client</SelectItem>
+                    <SelectItem value="expired_listing">Expired Listing</SelectItem>
+                    <SelectItem value="for_sale_by_owner">For Sale by Owner</SelectItem>
+                    <SelectItem value="center_of_influence">Center of Influence</SelectItem>
+                    <SelectItem value="referral">Referral</SelectItem>
+                    <SelectItem value="just_listed">Just Listed</SelectItem>
+                    <SelectItem value="just_sold">Just Sold</SelectItem>
+                    <SelectItem value="sign_call">Sign Call</SelectItem>
+                    <SelectItem value="advertisement_call">Advertisement Call</SelectItem>
+                    <SelectItem value="paid_lead_source">Paid Lead Source</SelectItem>
+                    <SelectItem value="social_media">Social Media</SelectItem>
+                    <SelectItem value="cold_call">Cold Call</SelectItem>
+                    <SelectItem value="open_house">Open House</SelectItem>
+                    <SelectItem value="door_knocking">Door Knocking</SelectItem>
+                    <SelectItem value="frbo">Frbo</SelectItem>
+                    <SelectItem value="probate">Probate</SelectItem>
+                    <SelectItem value="absentee_owner">Absentee Owner</SelectItem>
+                    <SelectItem value="attorney_referral">Attorney Referral</SelectItem>
+                    <SelectItem value="agent_2_agent_calls">Agent 2 Agent Calls</SelectItem>
+                    <SelectItem value="website">Website</SelectItem>
+                    <SelectItem value="advertisement">Advertisement</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           )}

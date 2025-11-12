@@ -397,6 +397,21 @@ export type Database = {
         | "open_house"
         | "advertisement"
         | "other"
+        | "past_client"
+        | "expired_listing"
+        | "for_sale_by_owner"
+        | "center_of_influence"
+        | "just_listed"
+        | "just_sold"
+        | "sign_call"
+        | "advertisement_call"
+        | "paid_lead_source"
+        | "door_knocking"
+        | "frbo"
+        | "probate"
+        | "absentee_owner"
+        | "attorney_referral"
+        | "agent_2_agent_calls"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -541,6 +556,21 @@ export const Constants = {
         "open_house",
         "advertisement",
         "other",
+        "past_client",
+        "expired_listing",
+        "for_sale_by_owner",
+        "center_of_influence",
+        "just_listed",
+        "just_sold",
+        "sign_call",
+        "advertisement_call",
+        "paid_lead_source",
+        "door_knocking",
+        "frbo",
+        "probate",
+        "absentee_owner",
+        "attorney_referral",
+        "agent_2_agent_calls",
       ],
     },
   },
