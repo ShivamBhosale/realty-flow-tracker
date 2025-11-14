@@ -746,63 +746,67 @@ const Contacts = () => {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>First Name</Label>
+                  <Label>First Name *</Label>
                   <Input
                     value={editingContact.first_name}
                     onChange={(e) => setEditingContact(prev => prev ? { ...prev, first_name: e.target.value } : null)}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Last Name</Label>
+                  <Label>Last Name *</Label>
                   <Input
                     value={editingContact.last_name}
                     onChange={(e) => setEditingContact(prev => prev ? { ...prev, last_name: e.target.value } : null)}
                   />
                 </div>
               </div>
-
-              <div className="grid grid-cols-3 gap-4">
+              
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Contract Date</Label>
+                  <Label>Email</Label>
                   <Input
-                    type="date"
-                    value={editingContact.contract_date || ''}
-                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, contract_date: e.target.value } : null)}
+                    type="email"
+                    value={editingContact.email || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, email: e.target.value } : null)}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Closed Date</Label>
+                  <Label>Phone</Label>
                   <Input
-                    type="date"
-                    value={editingContact.closed_date || ''}
-                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, closed_date: e.target.value } : null)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Pending Date</Label>
-                  <Input
-                    type="date"
-                    value={editingContact.pending_date || ''}
-                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, pending_date: e.target.value } : null)}
+                    value={editingContact.phone || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, phone: e.target.value } : null)}
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Address</Label>
+                <Input
+                  value={editingContact.address || ''}
+                  onChange={(e) => setEditingContact(prev => prev ? { ...prev, address: e.target.value } : null)}
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>Price</Label>
+                  <Label>City</Label>
                   <Input
-                    type="number"
-                    value={editingContact.price || ''}
-                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, price: parseFloat(e.target.value) } : null)}
+                    value={editingContact.city || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, city: e.target.value } : null)}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Paid Income</Label>
+                  <Label>State</Label>
                   <Input
-                    type="number"
-                    value={editingContact.paid_income || ''}
-                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, paid_income: parseFloat(e.target.value) } : null)}
+                    value={editingContact.state || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, state: e.target.value } : null)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>ZIP Code</Label>
+                  <Input
+                    value={editingContact.zip_code || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, zip_code: e.target.value } : null)}
                   />
                 </div>
               </div>
@@ -886,6 +890,119 @@ const Contacts = () => {
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Budget Min</Label>
+                  <Input
+                    type="number"
+                    value={editingContact.budget_min || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, budget_min: parseFloat(e.target.value) } : null)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Budget Max</Label>
+                  <Input
+                    type="number"
+                    value={editingContact.budget_max || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, budget_max: parseFloat(e.target.value) } : null)}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Preferred Areas</Label>
+                <Input
+                  value={editingContact.preferred_areas?.join(', ') || ''}
+                  onChange={(e) => setEditingContact(prev => prev ? { 
+                    ...prev, 
+                    preferred_areas: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                  } : null)}
+                  placeholder="Comma-separated areas"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Contract Date</Label>
+                  <Input
+                    type="date"
+                    value={editingContact.contract_date || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, contract_date: e.target.value } : null)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Closed Date</Label>
+                  <Input
+                    type="date"
+                    value={editingContact.closed_date || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, closed_date: e.target.value } : null)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Pending Date</Label>
+                  <Input
+                    type="date"
+                    value={editingContact.pending_date || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, pending_date: e.target.value } : null)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Fee</Label>
+                  <Input
+                    type="number"
+                    value={editingContact.fee || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, fee: parseFloat(e.target.value) } : null)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Price</Label>
+                  <Input
+                    type="number"
+                    value={editingContact.price || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, price: parseFloat(e.target.value) } : null)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Paid Income</Label>
+                  <Input
+                    type="number"
+                    value={editingContact.paid_income || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, paid_income: parseFloat(e.target.value) } : null)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Estimated Commission</Label>
+                  <Input
+                    type="number"
+                    value={editingContact.estimated_commission || ''}
+                    onChange={(e) => setEditingContact(prev => prev ? { ...prev, estimated_commission: parseFloat(e.target.value) } : null)}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Days on Market</Label>
+                <Input
+                  type="number"
+                  value={editingContact.days_on_market || ''}
+                  onChange={(e) => setEditingContact(prev => prev ? { ...prev, days_on_market: parseInt(e.target.value) } : null)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Notes</Label>
+                <Input
+                  value={editingContact.notes || ''}
+                  onChange={(e) => setEditingContact(prev => prev ? { ...prev, notes: e.target.value } : null)}
+                />
               </div>
             </div>
           )}
