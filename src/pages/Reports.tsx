@@ -6,11 +6,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CalendarDays, TrendingUp, Target, Users, BarChart3, TrendingDown } from 'lucide-react';
-import { startOfMonth, endOfMonth, startOfYear, endOfYear, subDays } from 'date-fns';
+import { startOfMonth, endOfMonth, startOfYear, endOfYear, subDays, parseISO, format } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 import ConversionFunnelChart from '@/components/charts/ConversionFunnelChart';
 import TrendChart from '@/components/charts/TrendChart';
 import GoalProgressChart from '@/components/charts/GoalProgressChart';
+import { CumulativeIncomeTrendChart } from '@/components/charts/CumulativeIncomeTrendChart';
 import { EmptyState } from '@/components/ui/EmptyState';
 
 interface MetricsSummary {
@@ -33,12 +34,14 @@ const Reports = () => {
   const [metrics, setMetrics] = useState<MetricsSummary | null>(null);
   const [dailyData, setDailyData] = useState<any[]>([]);
   const [goals, setGoals] = useState<any>(null);
+  const [incomeData, setIncomeData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
       loadMetrics();
       loadGoals();
+      loadIncomeData();
     }
   }, [user, timeframe]);
 
@@ -133,6 +136,85 @@ const Reports = () => {
     if (data) {
       setGoals(data);
     }
+  };
+
+  const loadIncomeData = async () => {
+    if (!user) return;
+
+    const currentYear = new Date().getFullYear();
+    const startDate = `${currentYear}-01-01`;
+    const endDate = `${currentYear}-12-31`;
+
+    // Fetch closed deals with paid income
+    const { data: contacts } = await supabase
+      .from('contacts')
+      .select('closed_date, paid_income')
+      .eq('user_id', user.id)
+      .not('closed_date', 'is', null)
+      .not('paid_income', 'is', null)
+      .gte('closed_date', startDate)
+      .lte('closed_date', endDate)
+      .order('closed_date', { ascending: true });
+
+    if (!contacts || contacts.length === 0) {
+      setIncomeData([]);
+      return;
+    }
+
+    // Calculate cumulative income over time
+    let cumulativeIncome = 0;
+    const incomeByDate: { [key: string]: number } = {};
+
+    contacts.forEach(contact => {
+      if (contact.closed_date && contact.paid_income) {
+        cumulativeIncome += Number(contact.paid_income);
+        incomeByDate[contact.closed_date] = cumulativeIncome;
+      }
+    });
+
+    // Get annual goal
+    const { data: goalData } = await supabase
+      .from('goals')
+      .select('annual_income_goal')
+      .eq('user_id', user.id)
+      .eq('year', currentYear)
+      .single();
+
+    const annualGoal = goalData?.annual_income_goal || 100000;
+
+    // Create data points for the chart
+    const chartData = [];
+    const firstDate = parseISO(contacts[0].closed_date!);
+    const lastDate = new Date();
+    
+    // Add starting point
+    chartData.push({
+      date: format(new Date(currentYear, 0, 1), 'MMM dd'),
+      cumulativeIncome: 0,
+      targetIncome: 0,
+    });
+
+    // Add all income data points
+    Object.keys(incomeByDate).forEach(dateStr => {
+      const date = parseISO(dateStr);
+      const dayOfYear = Math.floor((date.getTime() - new Date(currentYear, 0, 1).getTime()) / (1000 * 60 * 60 * 24));
+      const targetForDay = (annualGoal / 365) * dayOfYear;
+
+      chartData.push({
+        date: format(date, 'MMM dd'),
+        cumulativeIncome: incomeByDate[dateStr],
+        targetIncome: targetForDay,
+      });
+    });
+
+    // Add end of year point
+    chartData.push({
+      date: format(new Date(currentYear, 11, 31), 'MMM dd'),
+      cumulativeIncome: cumulativeIncome,
+      targetIncome: annualGoal,
+    });
+
+    setIncomeData(chartData);
   };
 
   const getConversionRate = (numerator: number, denominator: number) => {
@@ -288,6 +370,25 @@ const Reports = () => {
                     targetDeals={goals.deals_needed || 0}
                     currentVolume={metrics.volume_closed}
                     targetVolume={goals.annual_income_goal || 0}
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {goals && incomeData.length > 0 && (
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Cumulative Income Trend
+                  </CardTitle>
+                  <CardDescription>Track your earnings progress towards your annual income goal</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <CumulativeIncomeTrendChart
+                    data={incomeData}
+                    annualGoal={goals.annual_income_goal || 0}
+                    currentTotal={incomeData[incomeData.length - 1]?.cumulativeIncome || 0}
                   />
                 </CardContent>
               </Card>
