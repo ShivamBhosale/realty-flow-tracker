@@ -42,7 +42,7 @@ const Goals = () => {
       .select('*')
       .eq('user_id', user.id)
       .eq('year', currentYear)
-      .single();
+      .maybeSingle();
 
     if (data && !error) {
       setGoals(data);
