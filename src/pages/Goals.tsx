@@ -59,14 +59,11 @@ const Goals = () => {
     
     setIsLoading(true);
     
-    const dealsNeeded = calculateDealsNeeded(goals.annual_income_goal, goals.average_commission_per_deal);
-    
     const goalData = {
       user_id: user.id,
       year: goals.year,
       annual_income_goal: goals.annual_income_goal,
       average_commission_per_deal: goals.average_commission_per_deal,
-      deals_needed: dealsNeeded,
     };
 
     const { error } = await supabase
